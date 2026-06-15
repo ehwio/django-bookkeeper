@@ -245,6 +245,12 @@ body:has(#bk-reader) {
 .bk-epub-nav-btn:hover { background: var(--rd-border); }
 #epub-loc { font-size: .8rem; color: var(--rd-muted); min-width: 5rem; text-align: center; }
 
+/* Ensure hidden attribute works on viewer divs whose display is set in author CSS */
+#native-epub-viewer[hidden],
+#epub-viewer[hidden],
+#pdf-viewer[hidden],
+#cbz-viewer[hidden] { display: none; }
+
 /* Native EPUB viewer */
 #native-epub-viewer {
   flex: 1;
