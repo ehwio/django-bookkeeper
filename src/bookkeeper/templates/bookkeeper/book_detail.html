@@ -1,0 +1,140 @@
+{% extends "bookkeeper/base.html" %}
+{% load static %}
+
+{% block title %}{{ book.title }} — Bookkeeper{% endblock %}
+
+{% block content %}
+<div class="bk-book-detail">
+  <div class="bk-detail-cover-col">
+    {% if book.cover %}
+    <img src="{{ book.cover.url }}" alt="{{ book.title }} cover" class="bk-detail-cover">
+    {% else %}
+    <div class="bk-detail-cover bk-cover-placeholder">
+      <span>{{ book.get_format_display }}</span>
+    </div>
+    {% endif %}
+
+    <a href="{{ book.get_reader_url }}" class="bk-btn bk-btn-primary bk-btn-block bk-read-btn">
+      {% if progress and progress.percentage > 0 %}
+      Continue Reading
+      {% else %}
+      Start Reading
+      {% endif %}
+    </a>
+
+    {% if progress and progress.percentage > 0 %}
+    <div class="bk-progress-row">
+      <div class="bk-progress-bar">
+        <div class="bk-progress-fill" style="width: {{ progress.percentage }}%"></div>
+      </div>
+      <span class="bk-muted">{{ progress.percentage|floatformat:0 }}% · p.{{ progress.page_number }}</span>
+    </div>
+    {% endif %}
+
+    <div class="bk-detail-actions">
+      <button class="bk-btn bk-favorite-btn {% if user_book.is_favorite %}active{% endif %}"
+              data-slug="{{ book.slug }}" data-url="{% url 'bookkeeper:api_favorite' book.slug %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="{% if user_book.is_favorite %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        {% if user_book.is_favorite %}Favorited{% else %}Favorite{% endif %}
+      </button>
+      {% if not user_book.is_finished %}
+      <button class="bk-btn bk-finish-btn" data-url="{% url 'bookkeeper:api_finish' book.slug %}">
+        Mark as Finished
+      </button>
+      {% else %}
+      <span class="bk-badge bk-badge-finished">Finished ✓</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="bk-detail-info-col">
+    <h1 class="bk-detail-title">{{ book.title }}</h1>
+    {% if book.author %}<p class="bk-detail-author">by {{ book.author }}</p>{% endif %}
+
+    <div class="bk-detail-rating">
+      <label>Your rating:</label>
+      <div class="bk-star-rating bk-star-rating-lg" data-rating="{{ user_book.rating|default:0 }}" data-slug="{{ book.slug }}">
+        {% for i in "12345" %}
+        <button class="bk-star {% if user_book.rating and user_book.rating >= forloop.counter %}bk-star-filled{% endif %}"
+                data-value="{{ forloop.counter }}" aria-label="{{ forloop.counter }} star">★</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <dl class="bk-detail-meta">
+      {% if book.publisher %}<dt>Publisher</dt><dd>{{ book.publisher }}</dd>{% endif %}
+      {% if book.published_date %}<dt>Published</dt><dd>{{ book.published_date }}</dd>{% endif %}
+      {% if book.isbn %}<dt>ISBN</dt><dd>{{ book.isbn }}</dd>{% endif %}
+      <dt>Format</dt><dd>{{ book.get_format_display }}</dd>
+      {% if book.page_count %}<dt>Pages</dt><dd>{{ book.page_count }}</dd>{% endif %}
+      {% if book.language %}<dt>Language</dt><dd>{{ book.language|upper }}</dd>{% endif %}
+      <dt>Added</dt><dd>{{ book.created_at|date:"N j, Y" }}</dd>
+    </dl>
+
+    {% if book.description %}
+    <div class="bk-detail-description">
+      <h2>About this book</h2>
+      <p>{{ book.description }}</p>
+    </div>
+    {% endif %}
+
+    {% if bookmarks %}
+    <div class="bk-detail-section">
+      <h2>Bookmarks ({{ bookmarks.count }})</h2>
+      <ul class="bk-bookmark-list">
+        {% for bm in bookmarks %}
+        <li>
+          <a href="{{ book.get_reader_url }}?position={{ bm.position|urlencode }}">
+            {{ bm.title|default:"Bookmark" }} — p.{{ bm.page_number }}
+          </a>
+          {% if bm.note %}<p class="bk-muted">{{ bm.note }}</p>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if highlights %}
+    <div class="bk-detail-section">
+      <h2>Highlights ({{ highlights.count }})</h2>
+      <ul class="bk-highlight-list">
+        {% for hl in highlights %}
+        <li class="bk-highlight-item bk-hl-{{ hl.color }}">
+          <blockquote>{{ hl.text|truncatewords:30 }}</blockquote>
+          {% if hl.note %}<p class="bk-muted">{{ hl.note }}</p>{% endif %}
+          <span class="bk-muted">p.{{ hl.page_number }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.bk-favorite-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const res = await BK.post(btn.dataset.url);
+    if (res.is_favorite) {
+      btn.classList.add('active');
+      btn.querySelector('svg').setAttribute('fill', 'currentColor');
+      btn.lastChild.textContent = ' Favorited';
+    } else {
+      btn.classList.remove('active');
+      btn.querySelector('svg').setAttribute('fill', 'none');
+      btn.lastChild.textContent = ' Favorite';
+    }
+  });
+});
+document.querySelector('.bk-finish-btn')?.addEventListener('click', async function() {
+  await BK.post(this.dataset.url);
+  this.replaceWith(Object.assign(document.createElement('span'), {
+    className: 'bk-badge bk-badge-finished', textContent: 'Finished ✓'
+  }));
+});
+</script>
+{% endblock %}

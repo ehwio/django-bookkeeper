@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Bookkeeper{% endblock %}</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'bookkeeper/css/bookkeeper.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <header class="bk-header">
+    <nav class="bk-nav">
+      <a href="{% url 'bookkeeper:library' %}" class="bk-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        Bookkeeper
+      </a>
+      {% if user.is_authenticated %}
+      <div class="bk-nav-actions">
+        <button class="bk-btn bk-btn-primary" id="upload-trigger">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Add Book
+        </button>
+        <span class="bk-user">{{ user.get_short_name|default:user.username }}</span>
+      </div>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="bk-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Upload modal -->
+  {% if user.is_authenticated %}
+  <div class="bk-modal" id="upload-modal" hidden>
+    <div class="bk-modal-backdrop"></div>
+    <div class="bk-modal-box">
+      <div class="bk-modal-header">
+        <h2>Add a Book</h2>
+        <button class="bk-modal-close" aria-label="Close">&times;</button>
+      </div>
+      <form id="upload-form" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="bk-drop-zone" id="drop-zone">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <p>Drag &amp; drop your book here, or <label for="file-input" class="bk-link">browse</label></p>
+          <p class="bk-muted">PDF, EPUB, CBZ — up to 500 MB</p>
+          <input type="file" id="file-input" name="file" accept=".pdf,.epub,.cbz" hidden>
+        </div>
+        <div id="upload-meta" hidden>
+          <div class="bk-field">
+            <label for="id_title">Title <span class="bk-muted">(auto-detected)</span></label>
+            <input type="text" id="id_title" name="title" class="bk-input">
+          </div>
+          <div class="bk-field">
+            <label for="id_author">Author <span class="bk-muted">(auto-detected)</span></label>
+            <input type="text" id="id_author" name="author" class="bk-input">
+          </div>
+        </div>
+        <div id="upload-progress" hidden>
+          <div class="bk-progress-bar"><div class="bk-progress-fill" id="upload-fill"></div></div>
+          <p id="upload-status">Uploading…</p>
+        </div>
+        <div id="upload-error" class="bk-error" hidden></div>
+        <div class="bk-modal-footer">
+          <button type="button" class="bk-btn" id="upload-cancel">Cancel</button>
+          <button type="submit" class="bk-btn bk-btn-primary" id="upload-submit" disabled>Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <script src="{% static 'bookkeeper/js/bookkeeper.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

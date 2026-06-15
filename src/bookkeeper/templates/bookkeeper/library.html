@@ -1,0 +1,103 @@
+{% extends "bookkeeper/base.html" %}
+{% load static %}
+
+{% block title %}My Library — Bookkeeper{% endblock %}
+
+{% block content %}
+<div class="bk-library">
+  <div class="bk-library-header">
+    <div class="bk-library-title">
+      <h1>My Library</h1>
+      <span class="bk-badge">{{ paginator.count }} book{{ paginator.count|pluralize }}</span>
+    </div>
+
+    <form class="bk-search-form" method="get">
+      <div class="bk-search-wrap">
+        <svg class="bk-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="search" name="q" value="{{ query }}" placeholder="Search by title or author…" class="bk-input bk-search-input">
+      </div>
+      <select name="format" class="bk-select" onchange="this.form.submit()">
+        <option value="">All formats</option>
+        {% for val, label in formats %}
+        <option value="{{ val }}" {% if selected_format == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% if user_books %}
+  <div class="bk-grid">
+    {% for ub in user_books %}
+    {% with book=ub.book %}
+    <article class="bk-book-card">
+      <a href="{{ book.get_reader_url }}" class="bk-book-cover-link">
+        {% if book.cover %}
+        <img src="{{ book.cover.url }}" alt="{{ book.title }} cover" class="bk-book-cover" loading="lazy">
+        {% else %}
+        <div class="bk-book-cover bk-cover-placeholder">
+          <span>{{ book.format|upper }}</span>
+        </div>
+        {% endif %}
+        {% if ub.is_finished %}
+        <span class="bk-badge bk-badge-finished">Finished</span>
+        {% endif %}
+      </a>
+      <div class="bk-book-info">
+        <h3 class="bk-book-title">
+          <a href="{{ book.get_absolute_url }}">{{ book.title }}</a>
+        </h3>
+        {% if book.author %}<p class="bk-book-author">{{ book.author }}</p>{% endif %}
+        <div class="bk-book-meta">
+          <span class="bk-format-badge bk-format-{{ book.format }}">{{ book.get_format_display }}</span>
+          {% if book.page_count %}<span class="bk-muted">{{ book.page_count }}p</span>{% endif %}
+        </div>
+        <div class="bk-star-rating" data-rating="{{ ub.rating|default:0 }}" data-slug="{{ book.slug }}">
+          {% for i in "12345" %}
+          <button class="bk-star {% if ub.rating and ub.rating >= forloop.counter %}bk-star-filled{% endif %}"
+                  data-value="{{ forloop.counter }}" aria-label="{{ forloop.counter }} star">★</button>
+          {% endfor %}
+        </div>
+        {% if ub.date_last_read %}
+        <p class="bk-muted bk-last-read">Last read {{ ub.date_last_read|timesince }} ago</p>
+        {% endif %}
+      </div>
+    </article>
+    {% endwith %}
+    {% endfor %}
+  </div>
+
+  {% if is_paginated %}
+  <nav class="bk-pagination">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&q={{ query }}&format={{ selected_format }}" class="bk-btn">← Previous</a>
+    {% endif %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&q={{ query }}&format={{ selected_format }}" class="bk-btn">Next →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="bk-empty">
+    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+    <h2>Your library is empty</h2>
+    <p>Upload a PDF, EPUB, or CBZ to get started.</p>
+    <button class="bk-btn bk-btn-primary" id="upload-trigger-empty">Add your first book</button>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Wire the empty-state button to the same upload modal trigger
+  const emptyBtn = document.getElementById('upload-trigger-empty');
+  if (emptyBtn) emptyBtn.addEventListener('click', () => BK.openUpload());
+</script>
+{% endblock %}

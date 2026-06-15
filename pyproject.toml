@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "django-bookkeeper"
+version = "0.1.0"
+description = "A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ)"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Eric Williams", email = "eric@subcritical.org" }]
+requires-python = ">=3.11"
+classifiers = [
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.1",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Internet :: WWW/HTTP",
+]
+keywords = ["django", "ebook", "epub", "pdf", "cbz", "library", "reader"]
+dependencies = [
+    "django>=4.2",
+    "django-storages>=1.14",
+    "Pillow>=10.0",
+    "ebooklib>=0.18",
+    "PyMuPDF>=1.24",
+    "python-magic>=0.4.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-django>=4.8",
+    "pytest-cov>=5.0",
+    "factory-boy>=3.3",
+    "ruff>=0.4",
+    "django-debug-toolbar>=4.3",
+]
+social = [
+    "social-auth-app-django>=5.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/ehwio/django-bookkeeper"
+Repository = "https://github.com/ehwio/django-bookkeeper"
+Issues = "https://github.com/ehwio/django-bookkeeper/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bookkeeper"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+
+[tool.ruff]
+src = ["src"]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"*/migrations/*.py" = ["E501"]
+
+[tool.coverage.run]
+source = ["bookkeeper"]
+omit = ["*/migrations/*", "*/tests/*"]
