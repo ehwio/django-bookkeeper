@@ -2,10 +2,15 @@
    Bookkeeper — Reader stylesheet
    ============================================================ */
 
-/* Override body for full-bleed reader */
+/* Full-bleed reader: remove body scroll and main padding */
 body:has(#bk-reader) {
   overflow: hidden;
   height: 100vh;
+}
+body:has(#bk-reader) .bk-main {
+  padding: 0;
+  max-width: none;
+  margin: 0;
 }
 
 /* Theme variables injected by JS onto #bk-reader */
