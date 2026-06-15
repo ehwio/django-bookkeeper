@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 import re
@@ -222,6 +223,18 @@ def reader_view(request, slug):
 
     hooks.book_opened.send(sender=Book, user=request.user, book=book)
 
+    all_chapters = list(book.chapters.order_by("spine_index")) if book.format == "epub" else []
+    has_chapters = bool(all_chapters)
+
+    # Determine which chapter to open from saved position ("chapter_index:char_offset")
+    initial_chapter_index = 0
+    if has_chapters and progress.position and ":" in progress.position:
+        with contextlib.suppress(ValueError, IndexError):
+            initial_chapter_index = min(
+                int(progress.position.split(":")[0]),
+                len(all_chapters) - 1,
+            )
+
     return render(
         request,
         "bookkeeper/reader.html",
@@ -230,6 +243,10 @@ def reader_view(request, slug):
             "user_book": user_book,
             "progress": progress,
             "reader_settings": reader_settings,
+            "has_chapters": has_chapters,
+            "chapter_count": len(all_chapters),
+            "initial_chapter_index": initial_chapter_index,
+            "all_chapters": all_chapters,
             "highlights_json": json.dumps(list(
                 Highlight.objects.filter(user=request.user, book=book).values(
                     "id", "start_position", "end_position", "color", "note", "page_number"
@@ -375,6 +392,23 @@ def api_favorite(request, slug):
 
 
 # ---------------------------------------------------------------------------
+@login_required
+def api_chapter(request, slug, index):
+    book = get_object_or_404(Book, slug=slug)
+    chapter = get_object_or_404(Chapter, book=book, spine_index=index)
+    total = book.chapters.count()
+    return JsonResponse({
+        "html": chapter.html,
+        "title": chapter.title,
+        "spine_index": chapter.spine_index,
+        "char_count": chapter.char_count,
+        "content_hash": chapter.content_hash,
+        "total": total,
+        "has_prev": chapter.spine_index > 0,
+        "has_next": chapter.spine_index < total - 1,
+    })
+
+
 # Chapter eval view (feature/epub-extraction only)
 # Renders extracted chapter HTML directly so we can assess quality before
 # wiring the full reader to this path.

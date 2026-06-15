@@ -245,6 +245,51 @@ body:has(#bk-reader) {
 .bk-epub-nav-btn:hover { background: var(--rd-border); }
 #epub-loc { font-size: .8rem; color: var(--rd-muted); min-width: 5rem; text-align: center; }
 
+/* Native EPUB viewer */
+#native-epub-viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#native-epub-content {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--rd-surface);
+}
+#bk-chapter-content {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 4rem;
+  line-height: 1.8;
+}
+#bk-chapter-content p       { margin: 0 0 1em; }
+#bk-chapter-content h1,
+#bk-chapter-content h2,
+#bk-chapter-content h3      { font-family: system-ui, sans-serif; margin: 2em 0 .5em; }
+#bk-chapter-content em,
+#bk-chapter-content i       { font-style: italic; }
+#bk-chapter-content strong,
+#bk-chapter-content b       { font-weight: 700; }
+#bk-chapter-content blockquote {
+  border-left: 3px solid var(--rd-border);
+  margin: 1.5em 0;
+  padding-left: 1.5em;
+  color: var(--rd-muted);
+}
+#bk-chapter-content img     { max-width: 100%; height: auto; border-radius: 4px; }
+#bk-chapter-content a       { color: var(--bk-accent, #7c3aed); }
+#bk-chapter-content pre,
+#bk-chapter-content code    { font-family: monospace; background: var(--rd-border);
+                               padding: .1em .3em; border-radius: 3px; }
+
+/* CSS Custom Highlight API — painted by JS for new and restored highlights */
+::highlight(bk-hl-yellow) { background-color: #fef08a; }
+::highlight(bk-hl-green)  { background-color: #bbf7d0; }
+::highlight(bk-hl-blue)   { background-color: #bfdbfe; }
+::highlight(bk-hl-pink)   { background-color: #fbcfe8; }
+::highlight(bk-hl-orange) { background-color: #fed7aa; }
+
 /* PDF viewer */
 #pdf-viewer {
   flex: 1;
