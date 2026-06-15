@@ -248,12 +248,14 @@ body:has(#bk-reader) {
 /* Native EPUB viewer */
 #native-epub-viewer {
   flex: 1;
+  min-height: 0; /* required: prevents flex child from overflowing parent height */
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 #native-epub-content {
   flex: 1;
+  min-height: 0; /* required: allows scroll within constrained flex height */
   overflow-y: auto;
   background: var(--rd-surface);
 }

@@ -218,7 +218,17 @@
     btn.addEventListener('click', async () => {
       if (!pendingSelection) return;
       const color = btn.dataset.color;
-      await apiPost(URL_HL_CREATE, { ...pendingSelection, color });
+      const result = await apiPost(URL_HL_CREATE, { ...pendingSelection, color });
+      if (result.ok) {
+        allHighlights.push({
+          id: result.id,
+          start_position: pendingSelection.start_position,
+          end_position: pendingSelection.end_position,
+          color,
+          note: '',
+          page_number: pendingSelection.page_number,
+        });
+      }
       applyHighlight(pendingSelection.start_position, color);
       hideHighlightMenu();
     });
