@@ -1,3 +1,4 @@
+.DS_Store
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -17,3 +18,5 @@ htmlcov/
 /media/
 /static-collected/
 node_modules/
+demo/media/
+demo/demo.sqlite3

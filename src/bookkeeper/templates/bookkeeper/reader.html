@@ -173,5 +173,18 @@
 {% endblock %}
 
 {% block extra_js %}
+{# epub.js for EPUB rendering #}
+{% if book.format == 'epub' %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+{% endif %}
+{# PDF.js for PDF rendering #}
+{% if book.format == 'pdf' %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+{% endif %}
+{# JSZip for CBZ rendering #}
+{% if book.format == 'cbz' %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+{% endif %}
 <script src="{% static 'bookkeeper/js/reader.js' %}"></script>
 {% endblock %}

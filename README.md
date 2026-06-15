@@ -21,6 +21,38 @@ A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ).
 - **Extensible hook signals** for recent-books lists, activity feeds, etc.
 - Django best-practices: `django-storages` compatible, `AUTH_USER_MODEL` aware, namespaced URLs
 
+## Try the demo
+
+The fastest way to see Bookkeeper in action — one command downloads five
+public-domain classics from Project Gutenberg and starts a local server:
+
+```bash
+git clone https://github.com/ehwio/django-bookkeeper
+cd django-bookkeeper
+uv sync
+make demo
+```
+
+Then open **http://127.0.0.1:8000/** and sign in as `demo` / `demo`.
+
+**Or with Docker:**
+
+```bash
+docker compose up
+```
+
+The demo ships with:
+- *Pride and Prejudice* — Jane Austen
+- *Twenty Thousand Leagues Under the Seas* — Jules Verne
+- *The Time Machine* — H.G. Wells
+- *Alice's Adventures in Wonderland* — Lewis Carroll
+- *Frankenstein* — Mary Wollstonecraft Shelley
+
+> Books are downloaded from [Project Gutenberg](https://www.gutenberg.org/) on first run.
+> They are public domain and freely distributable.
+
+---
+
 ## Installation
 
 ```bash

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in — Bookkeeper Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f9f7f4;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e2ddd6;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 380px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      font-weight: 800;
+      font-size: 1.4rem;
+      color: #7c3aed;
+      margin-bottom: 2rem;
+    }
+    .logo svg { flex-shrink: 0; }
+    h1 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.5rem; color: #1c1917; }
+    .demo-hint {
+      background: #ede9fe;
+      border: 1px solid #c4b5fd;
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      font-size: .85rem;
+      color: #5b21b6;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .demo-hint strong { display: block; margin-bottom: .25rem; }
+    label { display: block; font-size: .875rem; font-weight: 500; margin-bottom: .35rem; color: #1c1917; }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: .55rem .75rem;
+      border: 1px solid #e2ddd6;
+      border-radius: 6px;
+      font-size: .9rem;
+      font-family: inherit;
+      margin-bottom: 1rem;
+      transition: border-color .15s;
+    }
+    input:focus { outline: none; border-color: #7c3aed; box-shadow: 0 0 0 3px #ede9fe; }
+    .errors { color: #dc2626; font-size: .85rem; margin-bottom: 1rem; }
+    button[type="submit"] {
+      width: 100%;
+      padding: .65rem;
+      background: #7c3aed;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    button[type="submit"]:hover { background: #6d28d9; }
+    .one-click {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: center;
+    }
+    .one-click button {
+      background: none;
+      border: 1px solid #e2ddd6;
+      border-radius: 6px;
+      padding: .4rem 1rem;
+      font-size: .875rem;
+      font-family: inherit;
+      color: #7c3aed;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .one-click button:hover { background: #f9f7f4; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+      Bookkeeper
+    </div>
+    <h1>Sign in to your library</h1>
+
+    <div class="demo-hint">
+      <strong>Demo credentials</strong>
+      Username: <code>demo</code> &nbsp;·&nbsp; Password: <code>demo</code>
+    </div>
+
+    {% if form.errors %}
+    <p class="errors">{{ form.non_field_errors }}</p>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <label for="id_username">Username</label>
+      <input type="text" id="id_username" name="username" autofocus autocomplete="username">
+      <label for="id_password">Password</label>
+      <input type="password" id="id_password" name="password" autocomplete="current-password">
+      <button type="submit">Sign in</button>
+    </form>
+
+    <div class="one-click">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="username" value="demo">
+        <input type="hidden" name="password" value="demo">
+        <button type="submit">Sign in as demo user →</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
