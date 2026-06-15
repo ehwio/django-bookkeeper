@@ -269,9 +269,9 @@
 
     const book = ePub(fileUrl);
 
-    // Wait for flex layout to resolve before measuring, otherwise epub.js
-    // gets a zero-height container and renders only a sliver of content.
-    await new Promise(r => requestAnimationFrame(r));
+    // Double-RAF: first frame queues layout, second frame reads after paint.
+    // Without this epub.js measures a zero/tiny height before flex resolves.
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     const rect = area.getBoundingClientRect();
     const w = Math.max(rect.width  || area.offsetWidth  || 800, 200);
@@ -387,6 +387,8 @@
 
     updateContentStyles();
     await rendition.display(initPos || undefined);
+    // Force resize to actual post-render dimensions in case initial measurement was off.
+    rendition.resize(area.offsetWidth, area.offsetHeight);
     allHighlights.forEach(hl => applyHighlight(hl.start_position, hl.color));
     hideLoading();
   }
