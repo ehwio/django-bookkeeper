@@ -16,7 +16,7 @@
      data-page="{{ progress.page_number|default:1 }}"
      data-highlights="{{ highlights|safe }}"
      data-bookmarks="{{ bookmarks|safe }}"
-     data-settings='{"fontSize":{{ reader_settings.font_size }},"fontFamily":"{{ reader_settings.font_family }}","lineHeight":{{ reader_settings.line_height }},"theme":"{{ reader_settings.theme }}","columnWidth":"{{ reader_settings.column_width }}"}}'
+     data-settings='{"fontSize":{{ reader_settings.font_size }},"fontFamily":"{{ reader_settings.font_family }}","lineHeight":{{ reader_settings.line_height }},"theme":"{{ reader_settings.theme }}","columnWidth":"{{ reader_settings.column_width }}"}'
      data-url-progress="{% url 'bookkeeper:api_progress' book.slug %}"
      data-url-rate="{% url 'bookkeeper:api_rate' book.slug %}"
      data-url-finish="{% url 'bookkeeper:api_finish' book.slug %}"

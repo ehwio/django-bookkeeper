@@ -231,9 +231,19 @@
 
   applyFontSettings();
 
-  if (format === 'epub')      await loadEpub();
-  else if (format === 'pdf')  await loadPdf();
-  else if (format === 'cbz')  await loadCbz();
+  try {
+    if (format === 'epub')      await loadEpub();
+    else if (format === 'pdf')  await loadPdf();
+    else if (format === 'cbz')  await loadCbz();
+    else {
+      el('reader-loading').innerHTML =
+        `<p style="color:var(--rd-muted)">Unknown format: ${format}</p>`;
+    }
+  } catch (err) {
+    console.error('Reader error:', err);
+    el('reader-loading').innerHTML =
+      `<p style="color:var(--rd-muted)">Failed to load book: ${err.message}</p>`;
+  }
 
   // ==============================================================
   // EPUB via epub.js

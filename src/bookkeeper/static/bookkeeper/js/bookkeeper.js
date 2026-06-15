@@ -59,7 +59,12 @@ const BK = (() => {
       e.preventDefault();
       dropZone.classList.remove('dragover');
       const f = e.dataTransfer.files[0];
-      if (f) onFileSelected(f);
+      if (!f) return;
+      // Put the dropped file into the actual input so FormData picks it up
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      fileInput.files = dt.files;
+      onFileSelected(f);
     });
 
     function onFileSelected(file) {
