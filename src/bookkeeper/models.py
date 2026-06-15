@@ -78,6 +78,28 @@ class Book(models.Model):
         return h.hexdigest()
 
 
+class Chapter(models.Model):
+    """
+    A single spine item from an EPUB, stored as sanitized HTML.
+    Populated at upload time; replaces epub.js rendering for reflowable EPUBs.
+    """
+
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="chapters")
+    spine_index = models.PositiveIntegerField()
+    title = models.CharField(max_length=500, blank=True)
+    html = models.TextField()
+    char_count = models.PositiveIntegerField(default=0)
+    # Short hash of extracted HTML — lets us detect when offsets are stale
+    content_hash = models.CharField(max_length=16)
+
+    class Meta:
+        ordering = ["spine_index"]
+        unique_together = [("book", "spine_index")]
+
+    def __str__(self):
+        return f"{self.book} — ch.{self.spine_index} {self.title}"
+
+
 class UserBook(models.Model):
     """Per-user relationship to a book: rating, dates, etc."""
 

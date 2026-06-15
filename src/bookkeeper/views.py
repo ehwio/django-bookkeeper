@@ -1,6 +1,8 @@
 import json
 import os
+import re
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.base import ContentFile
@@ -12,8 +14,18 @@ from django.views.generic import DetailView, ListView
 
 from . import hooks
 from .forms import BookUploadForm
-from .models import Book, BookFormat, Bookmark, Highlight, ReaderSettings, ReadingProgress, UserBook
+from .models import (
+    Book,
+    BookFormat,
+    Bookmark,
+    Chapter,
+    Highlight,
+    ReaderSettings,
+    ReadingProgress,
+    UserBook,
+)
 from .readers import ReaderError, get_reader
+from .readers.epub import IMG_PLACEHOLDER_PREFIX
 
 # ---------------------------------------------------------------------------
 # Library views
@@ -133,6 +145,10 @@ def upload_book(request):
 
     book.save()
     UserBook.objects.create(user=request.user, book=book)
+
+    if fmt == BookFormat.EPUB and not reader.is_fixed_layout():
+        _extract_epub_chapters(book, reader)
+
     hooks.book_uploaded.send(sender=Book, user=request.user, book=book)
 
     return JsonResponse({"redirect": book.get_absolute_url()})
@@ -152,6 +168,44 @@ def _unique_slug(base):
         slug = f"{base}-{n}"
         n += 1
     return slug
+
+
+def _extract_epub_chapters(book, reader):
+    """Save extracted chapter HTML and images for a freshly uploaded EPUB."""
+    images = reader.extract_images()
+
+    # Save images to MEDIA_ROOT and build a placeholder → URL map
+    image_url_map: dict[str, str] = {}
+    for epub_path, (img_bytes, _media_type) in images.items():
+        # Flatten path: OEBPS/Images/fig.png → OEBPS__Images__fig.png
+        safe_name = epub_path.replace("/", "__")
+        storage_rel = f"bookkeeper/book-images/{book.slug}/{safe_name}"
+        full_path = os.path.join(settings.MEDIA_ROOT, storage_rel)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, "wb") as fh:
+            fh.write(img_bytes)
+        image_url_map[epub_path] = settings.MEDIA_URL + storage_rel
+
+    placeholder_re = re.compile(
+        re.escape(IMG_PLACEHOLDER_PREFIX) + r"([^\s\"']+)"
+    )
+
+    def _replace_img(m: re.Match) -> str:
+        return image_url_map.get(m.group(1), "")
+
+    chapters_data = reader.extract_chapters()
+    to_create = []
+    for i, ch in enumerate(chapters_data):
+        html = placeholder_re.sub(_replace_img, ch["html"])
+        to_create.append(Chapter(
+            book=book,
+            spine_index=i,
+            title=ch["title"],
+            html=html,
+            char_count=ch["char_count"],
+            content_hash=ch["content_hash"],
+        ))
+    Chapter.objects.bulk_create(to_create)
 
 
 # ---------------------------------------------------------------------------
@@ -318,3 +372,30 @@ def api_favorite(request, slug):
     user_book.is_favorite = not user_book.is_favorite
     user_book.save(update_fields=["is_favorite"])
     return JsonResponse({"ok": True, "is_favorite": user_book.is_favorite})
+
+
+# ---------------------------------------------------------------------------
+# Chapter eval view (feature/epub-extraction only)
+# Renders extracted chapter HTML directly so we can assess quality before
+# wiring the full reader to this path.
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def chapter_eval(request, slug, index):
+    book = get_object_or_404(Book, slug=slug)
+    chapters = list(book.chapters.all())
+    if not chapters:
+        return render(request, "bookkeeper/chapter_eval.html", {
+            "book": book, "chapter": None, "chapters": [],
+            "prev_index": None, "next_index": None,
+        })
+    index = max(0, min(index, len(chapters) - 1))
+    chapter = chapters[index]
+    return render(request, "bookkeeper/chapter_eval.html", {
+        "book": book,
+        "chapter": chapter,
+        "chapters": chapters,
+        "prev_index": index - 1 if index > 0 else None,
+        "next_index": index + 1 if index < len(chapters) - 1 else None,
+    })

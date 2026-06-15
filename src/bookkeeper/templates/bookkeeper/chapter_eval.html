@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval: {{ book.title }}</title>
+  {% load static %}
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Georgia, serif; background: #f5f4f0; color: #1c1917; }
+
+    .eval-bar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; gap: 1rem;
+      padding: .5rem 1.5rem;
+      background: #1c1917; color: #e8e0d4;
+      font-family: system-ui, sans-serif; font-size: .8rem;
+    }
+    .eval-bar a { color: #a78bfa; text-decoration: none; }
+    .eval-bar a:hover { text-decoration: underline; }
+    .eval-bar .spacer { flex: 1; }
+    .eval-bar select {
+      background: #333; color: #e8e0d4; border: 1px solid #555;
+      border-radius: 4px; padding: .2rem .4rem; font-size: .8rem;
+    }
+    .eval-nav a {
+      display: inline-block; padding: .3rem .75rem;
+      background: #3a3530; border-radius: 4px; color: #e8e0d4;
+      font-family: system-ui, sans-serif; font-size: .8rem;
+    }
+    .eval-nav a:hover { background: #555; text-decoration: none; }
+    .eval-nav span { opacity: .35; display: inline-block; padding: .3rem .75rem; }
+
+    .chapter-wrap {
+      max-width: 680px; margin: 3rem auto; padding: 0 1.5rem 6rem;
+    }
+    .chapter-title {
+      font-family: system-ui, sans-serif; font-size: .75rem; font-weight: 700;
+      letter-spacing: .08em; color: #78716c; text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    /* --- Content styles: semantic only, no layout overrides --- */
+    #bk-chapter-content { line-height: 1.8; font-size: 1.05rem; }
+    #bk-chapter-content p { margin: 0 0 1em; }
+    #bk-chapter-content h1,
+    #bk-chapter-content h2,
+    #bk-chapter-content h3 { font-family: system-ui, sans-serif; margin: 2em 0 .5em; }
+    #bk-chapter-content em, #bk-chapter-content i { font-style: italic; }
+    #bk-chapter-content strong, #bk-chapter-content b { font-weight: 700; }
+    #bk-chapter-content blockquote {
+      border-left: 3px solid #d4c9b0; margin: 1.5em 0; padding-left: 1.5em;
+      color: #6b6456;
+    }
+    #bk-chapter-content img { max-width: 100%; height: auto; border-radius: 4px; }
+    #bk-chapter-content a { color: #7c3aed; }
+    #bk-chapter-content pre, #bk-chapter-content code {
+      font-family: monospace; background: #f0ece4; padding: .1em .3em; border-radius: 3px;
+    }
+
+    /* Eval info box */
+    .eval-meta {
+      font-family: system-ui, sans-serif; font-size: .75rem; color: #78716c;
+      background: #fff; border: 1px solid #e2ddd6; border-radius: 8px;
+      padding: .75rem 1rem; margin-bottom: 2rem;
+      display: flex; gap: 2rem; flex-wrap: wrap;
+    }
+    .eval-meta span { white-space: nowrap; }
+    .eval-meta code { font-size: .7rem; background: #f0ece4; padding: .1em .3em; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="eval-bar">
+  <strong>⚙ Eval</strong>
+  <a href="{% url 'bookkeeper:book_detail' book.slug %}">← {{ book.title }}</a>
+  <span class="spacer"></span>
+  {% if chapters %}
+  <select onchange="location.href=this.value">
+    {% for ch in chapters %}
+    <option value="{% url 'bookkeeper:chapter_eval' book.slug ch.spine_index %}"
+      {% if chapter and ch.spine_index == chapter.spine_index %}selected{% endif %}>
+      ch.{{ ch.spine_index }}{% if ch.title %} — {{ ch.title|truncatechars:40 }}{% endif %}
+    </option>
+    {% endfor %}
+  </select>
+  {% endif %}
+  <div class="eval-nav">
+    {% if prev_index is not None %}
+      <a href="{% url 'bookkeeper:chapter_eval' book.slug prev_index %}">‹ Prev</a>
+    {% else %}
+      <span>‹ Prev</span>
+    {% endif %}
+    {% if next_index is not None %}
+      <a href="{% url 'bookkeeper:chapter_eval' book.slug next_index %}">Next ›</a>
+    {% else %}
+      <span>Next ›</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="chapter-wrap">
+  {% if not chapter %}
+    <p style="font-family:system-ui;color:#78716c">
+      No chapters extracted for this book.
+      {% if book.format == 'epub' %}It may be a fixed-layout EPUB.{% endif %}
+    </p>
+  {% else %}
+    <div class="eval-meta">
+      <span>ch.<strong>{{ chapter.spine_index }}</strong> of <strong>{{ chapters|length }}</strong></span>
+      <span>{{ chapter.char_count|default:0 }} chars</span>
+      <span>hash <code>{{ chapter.content_hash }}</code></span>
+      {% if chapter.title %}<span>title: <em>{{ chapter.title }}</em></span>{% endif %}
+    </div>
+
+    {% if chapter.title %}
+    <div class="chapter-title">{{ chapter.title }}</div>
+    {% endif %}
+
+    <div id="bk-chapter-content">
+      {{ chapter.html|safe }}
+    </div>
+  {% endif %}
+</div>
+
+</body>
+</html>
