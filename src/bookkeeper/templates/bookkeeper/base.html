@@ -47,7 +47,7 @@
         <h2>Add a Book</h2>
         <button class="bk-modal-close" aria-label="Close">&times;</button>
       </div>
-      <form id="upload-form" enctype="multipart/form-data">
+      <form id="upload-form" enctype="multipart/form-data" action="{% url 'bookkeeper:upload' %}">
         {% csrf_token %}
         <div class="bk-drop-zone" id="drop-zone">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">

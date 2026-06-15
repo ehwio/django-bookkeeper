@@ -89,7 +89,7 @@ const BK = (() => {
 
       const fd = new FormData(form);
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', '/books/upload/');
+      xhr.open('POST', form.action);
       xhr.setRequestHeader('X-CSRFToken', csrfToken());
 
       xhr.upload.onprogress = ev => {

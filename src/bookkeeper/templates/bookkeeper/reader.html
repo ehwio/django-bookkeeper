@@ -16,7 +16,13 @@
      data-page="{{ progress.page_number|default:1 }}"
      data-highlights="{{ highlights|safe }}"
      data-bookmarks="{{ bookmarks|safe }}"
-     data-settings='{"fontSize":{{ reader_settings.font_size }},"fontFamily":"{{ reader_settings.font_family }}","lineHeight":{{ reader_settings.line_height }},"theme":"{{ reader_settings.theme }}","columnWidth":"{{ reader_settings.column_width }}"}'>
+     data-settings='{"fontSize":{{ reader_settings.font_size }},"fontFamily":"{{ reader_settings.font_family }}","lineHeight":{{ reader_settings.line_height }},"theme":"{{ reader_settings.theme }}","columnWidth":"{{ reader_settings.column_width }}"}}'
+     data-url-progress="{% url 'bookkeeper:api_progress' book.slug %}"
+     data-url-rate="{% url 'bookkeeper:api_rate' book.slug %}"
+     data-url-finish="{% url 'bookkeeper:api_finish' book.slug %}"
+     data-url-highlight-create="{% url 'bookkeeper:api_highlight_create' book.slug %}"
+     data-url-bookmark-create="{% url 'bookkeeper:api_bookmark_create' book.slug %}"
+     data-url-reader-settings="{% url 'bookkeeper:api_reader_settings' %}">
 
   <!-- Top toolbar -->
   <header class="bk-reader-header">
@@ -90,7 +96,18 @@
         <p>Loading book…</p>
       </div>
       <!-- EPUB: rendered by epub.js into this element -->
-      <div id="epub-viewer" hidden></div>
+      <div id="epub-viewer" hidden>
+        <div id="epub-area"></div>
+        <div class="bk-epub-nav">
+          <button class="bk-epub-nav-btn" id="epub-prev" title="Previous page">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span id="epub-loc" class="bk-muted"></span>
+          <button class="bk-epub-nav-btn" id="epub-next" title="Next page">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
       <!-- PDF: rendered page-by-page -->
       <div id="pdf-viewer" hidden></div>
       <!-- CBZ: image pages -->

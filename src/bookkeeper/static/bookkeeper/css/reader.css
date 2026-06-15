@@ -208,12 +208,42 @@ body:has(#bk-reader) {
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
-#epub-viewer iframe {
+#epub-area {
   flex: 1;
-  border: none;
+  overflow: hidden;
   background: var(--rd-surface);
 }
+#epub-area iframe {
+  border: none !important;
+  background: var(--rd-surface);
+}
+.bk-epub-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: .5rem;
+  background: var(--rd-header);
+  border-top: 1px solid var(--rd-border);
+  flex-shrink: 0;
+}
+.bk-epub-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--rd-border);
+  border-radius: 50%;
+  background: var(--rd-surface);
+  color: var(--rd-text);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.bk-epub-nav-btn:hover { background: var(--rd-border); }
+#epub-loc { font-size: .8rem; color: var(--rd-muted); min-width: 5rem; text-align: center; }
 
 /* PDF viewer */
 #pdf-viewer {

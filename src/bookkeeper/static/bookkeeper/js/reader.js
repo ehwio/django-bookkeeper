@@ -1,10 +1,9 @@
-/* Bookkeeper — Reader JS
-   Handles EPUB (via epub.js), PDF (via PDF.js), and CBZ rendering,
-   plus highlights, bookmarks, settings persistence, and progress tracking. */
+/* Bookkeeper — Reader JS */
 
 (async () => {
   const el = id => document.getElementById(id);
   const reader    = el('bk-reader');
+
   const slug      = reader.dataset.slug;
   const format    = reader.dataset.format;
   const fileUrl   = reader.dataset.fileUrl;
@@ -14,11 +13,19 @@
   const allBookmarks  = JSON.parse(reader.dataset.bookmarks  || '[]');
   let settings = JSON.parse(reader.dataset.settings || '{}');
 
+  // URLs injected by Django template — no hardcoded paths
+  const URL_PROGRESS       = reader.dataset.urlProgress;
+  const URL_RATE           = reader.dataset.urlRate;
+  const URL_FINISH         = reader.dataset.urlFinish;
+  const URL_HL_CREATE      = reader.dataset.urlHighlightCreate;
+  const URL_BM_CREATE      = reader.dataset.urlBookmarkCreate;
+  const URL_SETTINGS       = reader.dataset.urlReaderSettings;
+
   const CSRF = () =>
     document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] ?? '';
 
-  async function apiPost(path, data = {}) {
-    const res = await fetch(path, {
+  async function apiPost(url, data = {}) {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF() },
       body: JSON.stringify(data),
@@ -31,7 +38,7 @@
   function saveProgress(position, page, pct) {
     clearTimeout(progressTimer);
     progressTimer = setTimeout(async () => {
-      await apiPost(`/books/api/book/${slug}/progress/`, {
+      await apiPost(URL_PROGRESS, {
         position, page_number: page, percentage: parseFloat(pct.toFixed(1)),
       });
       el('current-page').textContent = page;
@@ -48,9 +55,8 @@
   }
   function applyWidth(w) {
     const widthMap = { narrow: '560px', normal: '720px', wide: '960px' };
-    document.querySelectorAll('#epub-viewer iframe, #pdf-viewer, #cbz-viewer').forEach(v => {
-      v.style.maxWidth = widthMap[w] || '720px';
-    });
+    el('epub-area').style.maxWidth   = widthMap[w] || '720px';
+    el('pdf-viewer').style.maxWidth  = widthMap[w] || '720px';
     document.querySelectorAll('.bk-theme-btn[data-width]').forEach(b =>
       b.classList.toggle('active', b.dataset.width === w));
   }
@@ -63,7 +69,7 @@
   }
 
   async function persistSettings() {
-    await apiPost('/books/api/reader-settings/', settings);
+    await apiPost(URL_SETTINGS, settings);
   }
 
   // Settings panel wiring
@@ -76,30 +82,30 @@
   el('font-decrease').addEventListener('click', async () => {
     settings.fontSize = Math.max(10, settings.fontSize - 2);
     applyFontSettings();
-    updateEpubStyles();
+    updateContentStyles();
     await persistSettings();
   });
   el('font-increase').addEventListener('click', async () => {
     settings.fontSize = Math.min(32, settings.fontSize + 2);
     applyFontSettings();
-    updateEpubStyles();
+    updateContentStyles();
     await persistSettings();
   });
   el('font-family-select').addEventListener('change', async e => {
     settings.fontFamily = e.target.value;
-    updateEpubStyles();
+    updateContentStyles();
     await persistSettings();
   });
   el('line-height-range').addEventListener('input', async e => {
     settings.lineHeight = parseFloat(e.target.value);
-    updateEpubStyles();
+    updateContentStyles();
     await persistSettings();
   });
   document.querySelectorAll('.bk-theme-btn[data-theme]').forEach(b => {
     b.addEventListener('click', async () => {
       settings.theme = b.dataset.theme;
       applyTheme(settings.theme);
-      updateEpubStyles();
+      updateContentStyles();
       await persistSettings();
     });
   });
@@ -111,7 +117,7 @@
     });
   });
 
-  // ── TOC / sidebar ─────────────────────────────────────────────
+  // ── Sidebar ───────────────────────────────────────────────────
   el('btn-toc').addEventListener('click', () => {
     const sidebar = el('reader-sidebar');
     sidebar.toggleAttribute('hidden');
@@ -129,7 +135,10 @@
 
   function populateSidebarBookmarks() {
     const panel = el('tab-bookmarks');
-    if (!allBookmarks.length) { panel.innerHTML = '<p class="bk-muted" style="padding:.5rem">No bookmarks yet.</p>'; return; }
+    if (!allBookmarks.length) {
+      panel.innerHTML = '<p class="bk-muted" style="padding:.5rem">No bookmarks yet.</p>';
+      return;
+    }
     const ul = document.createElement('ul');
     allBookmarks.forEach(bm => {
       const li = document.createElement('li');
@@ -141,11 +150,14 @@
   }
   function populateSidebarHighlights() {
     const panel = el('tab-highlights');
-    if (!allHighlights.length) { panel.innerHTML = '<p class="bk-muted" style="padding:.5rem">No highlights yet.</p>'; return; }
+    if (!allHighlights.length) {
+      panel.innerHTML = '<p class="bk-muted" style="padding:.5rem">No highlights yet.</p>';
+      return;
+    }
     const ul = document.createElement('ul');
     allHighlights.forEach(hl => {
       const li = document.createElement('li');
-      li.style.borderLeft = `3px solid`;
+      li.style.borderLeft = '3px solid';
       li.style.paddingLeft = '.5rem';
       li.textContent = `p.${hl.page_number}`;
       li.addEventListener('click', () => navigateTo(hl.start_position, hl.page_number));
@@ -167,10 +179,9 @@
   el('bookmark-modal').querySelector('.bk-modal-close').addEventListener('click',
     () => el('bookmark-modal').setAttribute('hidden', ''));
   el('bm-save').addEventListener('click', async () => {
-    const title = el('bm-title').value.trim();
-    const note  = el('bm-note').value.trim();
-    await apiPost(`/books/api/book/${slug}/bookmark/`, {
-      title, note,
+    await apiPost(URL_BM_CREATE, {
+      title: el('bm-title').value.trim(),
+      note:  el('bm-note').value.trim(),
       position: pendingBookmarkPos || '',
       page_number: pendingBookmarkPage,
     });
@@ -201,59 +212,70 @@
   hlMenu.querySelectorAll('.bk-hl-color').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!pendingSelection) return;
-      await apiPost(`/books/api/book/${slug}/highlight/`, {
-        ...pendingSelection,
-        color: btn.dataset.color,
-      });
+      await apiPost(URL_HL_CREATE, { ...pendingSelection, color: btn.dataset.color });
       hideHighlightMenu();
     });
   });
   el('hl-remove').addEventListener('click', async () => {
     if (pendingSelection?.id) {
-      await apiPost(`/books/api/book/${slug}/highlight/${pendingSelection.id}/delete/`);
+      await apiPost(`${URL_HL_CREATE}${pendingSelection.id}/delete/`);
     }
     hideHighlightMenu();
   });
 
-  // ── Format dispatchers ────────────────────────────────────────
+  // ── Shared stubs (overridden per-format) ─────────────────────
   let navigateTo = () => {};
-  let updateEpubStyles = () => {};
+  let updateContentStyles = () => {};
 
-  function hideLoading() {
-    el('reader-loading').style.display = 'none';
-  }
+  function hideLoading() { el('reader-loading').style.display = 'none'; }
 
   applyFontSettings();
 
-  if (format === 'epub') {
-    await loadEpub();
-  } else if (format === 'pdf') {
-    await loadPdf();
-  } else if (format === 'cbz') {
-    await loadCbz();
-  }
+  if (format === 'epub')      await loadEpub();
+  else if (format === 'pdf')  await loadPdf();
+  else if (format === 'cbz')  await loadCbz();
 
   // ==============================================================
-  // EPUB via epub.js (loaded from CDN if available, else stub)
+  // EPUB via epub.js
   // ==============================================================
   async function loadEpub() {
-    const viewer = el('epub-viewer');
+    const viewer  = el('epub-viewer');
+    const area    = el('epub-area');
+    const prevBtn = el('epub-prev');
+    const nextBtn = el('epub-next');
+    const locSpan = el('epub-loc');
+
     viewer.removeAttribute('hidden');
 
     if (typeof ePub === 'undefined') {
-      viewer.innerHTML = '<p style="padding:2rem;color:var(--rd-muted)">epub.js not loaded. Add it to your project.</p>';
+      area.innerHTML = '<p style="padding:2rem;color:var(--rd-muted)">epub.js not loaded.</p>';
       hideLoading();
       return;
     }
 
     const book = ePub(fileUrl);
-    const rendition = book.renderTo(viewer, {
-      width: '100%',
-      height: '100%',
+
+    // Measure the available area and pass pixel dimensions so epub.js
+    // doesn't end up with a zero- or percent-height iframe.
+    const rect = area.getBoundingClientRect();
+    const w = Math.max(rect.width  || area.offsetWidth  || 800, 200);
+    const h = Math.max(rect.height || area.offsetHeight || 600, 300);
+
+    const rendition = book.renderTo(area, {
+      width:  w,
+      height: h,
       spread: 'none',
+      flow:   'paginated',
     });
 
-    updateEpubStyles = () => {
+    // Resize epub iframe whenever the window changes
+    const onResize = () => {
+      const r = area.getBoundingClientRect();
+      rendition.resize(r.width || area.offsetWidth, r.height || area.offsetHeight);
+    };
+    window.addEventListener('resize', onResize);
+
+    updateContentStyles = () => {
       const themeMap = {
         light: { body: { background: '#ffffff', color: '#1c1917' } },
         sepia: { body: { background: '#fdf6e3', color: '#3b3020' } },
@@ -263,41 +285,39 @@
       rendition.themes.default({
         body: {
           ...th.body,
-          'font-size': settings.fontSize + 'px !important',
+          'font-size':   settings.fontSize + 'px !important',
           'font-family': settings.fontFamily + ' !important',
           'line-height': settings.lineHeight + ' !important',
-          'max-width': ({ narrow: '560px', normal: '720px', wide: '960px' })[settings.columnWidth] || '720px',
-          margin: '0 auto',
-          padding: '2rem',
-        }
+          padding: '1.5rem 2rem',
+        },
       });
     };
 
     rendition.on('relocated', loc => {
-      const page = loc.start.displayed.page;
+      const pg    = loc.start.displayed.page;
       const total = loc.start.displayed.total || 1;
-      const pct = (page / total) * 100;
-      pendingBookmarkPos = loc.start.cfi;
-      pendingBookmarkPage = page;
-      saveProgress(loc.start.cfi, page, pct);
+      locSpan.textContent = `${pg} / ${total}`;
+      pendingBookmarkPos  = loc.start.cfi;
+      pendingBookmarkPage = pg;
+      saveProgress(loc.start.cfi, pg, (pg / total) * 100);
     });
 
     rendition.on('selected', (cfiRange, contents) => {
-      const range = contents.window.getSelection();
-      if (!range || range.isCollapsed) return;
-      const text = range.toString().trim();
+      const sel = contents.window.getSelection();
+      if (!sel || sel.isCollapsed) return;
+      const text = sel.toString().trim();
       if (!text) return;
-      const rects = range.getRangeAt(0).getClientRects();
+      const rects = sel.getRangeAt(0).getClientRects();
       const last  = rects[rects.length - 1];
-      const iframeRect = viewer.querySelector('iframe')?.getBoundingClientRect();
+      const iframeRect = area.querySelector('iframe')?.getBoundingClientRect() || { left: 0, top: 0 };
       showHighlightMenu(
-        (iframeRect?.left || 0) + last.right,
-        (iframeRect?.top  || 0) + last.bottom,
+        iframeRect.left + last.right,
+        iframeRect.top  + last.bottom,
         { start_position: cfiRange, end_position: cfiRange, text, page_number: pendingBookmarkPage }
       );
     });
 
-    // Build TOC
+    // TOC
     book.loaded.navigation.then(nav => {
       const ul = document.createElement('ul');
       (nav.toc || []).forEach(ch => {
@@ -317,16 +337,19 @@
       el('tab-toc').appendChild(ul);
     });
 
+    // Navigation buttons
+    prevBtn.addEventListener('click', () => rendition.prev());
+    nextBtn.addEventListener('click', () => rendition.next());
+
     navigateTo = (cfi) => rendition.display(cfi);
 
-    // Keyboard navigation
-    const keyNav = e => {
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') rendition.next();
       if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   rendition.prev();
-    };
-    document.addEventListener('keydown', keyNav);
+    });
 
-    updateEpubStyles();
+    updateContentStyles();
     await rendition.display(initPos || undefined);
     hideLoading();
   }
@@ -339,7 +362,7 @@
     viewer.removeAttribute('hidden');
 
     if (typeof pdfjsLib === 'undefined') {
-      viewer.innerHTML = '<p style="padding:2rem;color:var(--rd-muted)">PDF.js not loaded. Add it to your project.</p>';
+      viewer.innerHTML = '<p style="padding:2rem;color:var(--rd-muted)">PDF.js not loaded.</p>';
       hideLoading();
       return;
     }
@@ -351,12 +374,12 @@
     const totalPages = pdf.numPages;
     let currentPage = Math.min(initPage, totalPages);
 
-    // Nav bar
     const nav = document.createElement('div');
     nav.className = 'bk-pdf-nav';
     nav.innerHTML = `
       <button id="pdf-prev" title="Previous page">&#8592;</button>
-      <input type="number" class="bk-pdf-page-input" id="pdf-page-input" min="1" max="${totalPages}" value="${currentPage}">
+      <input type="number" class="bk-pdf-page-input" id="pdf-page-input"
+             min="1" max="${totalPages}" value="${currentPage}">
       <span style="font-size:.8rem;color:var(--rd-muted)">/ ${totalPages}</span>
       <button id="pdf-next" title="Next page">&#8594;</button>
     `;
@@ -371,13 +394,11 @@
       el('pdf-page-input').value = currentPage;
       el('pdf-prev').disabled = currentPage <= 1;
       el('pdf-next').disabled = currentPage >= totalPages;
-
-      const page  = await pdf.getPage(currentPage);
-      const vp    = page.getViewport({ scale: 1.5 });
+      const page = await pdf.getPage(currentPage);
+      const vp   = page.getViewport({ scale: 1.5 });
       canvas.width  = vp.width;
       canvas.height = vp.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-
       pendingBookmarkPos  = String(currentPage);
       pendingBookmarkPage = currentPage;
       saveProgress(String(currentPage), currentPage, (currentPage / totalPages) * 100);
@@ -388,13 +409,11 @@
     el('pdf-page-input').addEventListener('change', e => renderPage(parseInt(e.target.value)));
 
     document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') renderPage(currentPage + 1);
       if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   renderPage(currentPage - 1);
     });
 
-    navigateTo = (_, page) => renderPage(page);
-
-    // TOC via PDF outline
     pdf.getOutline().then(outline => {
       if (!outline?.length) return;
       const ul = document.createElement('ul');
@@ -405,11 +424,10 @@
         li.addEventListener('click', async () => {
           if (item.dest) {
             const dest = typeof item.dest === 'string'
-              ? await pdf.getDestination(item.dest)
-              : item.dest;
+              ? await pdf.getDestination(item.dest) : item.dest;
             if (dest) {
-              const pageIdx = await pdf.getPageIndex(dest[0]);
-              renderPage(pageIdx + 1);
+              const idx = await pdf.getPageIndex(dest[0]);
+              renderPage(idx + 1);
             }
           }
         });
@@ -418,28 +436,29 @@
       el('tab-toc').appendChild(ul);
     });
 
-    updateEpubStyles = () => {};
+    navigateTo = (_, page) => renderPage(page);
+    updateContentStyles = () => {};
     await renderPage(currentPage);
     hideLoading();
   }
 
   // ==============================================================
-  // CBZ
+  // CBZ via JSZip
   // ==============================================================
   async function loadCbz() {
     const viewer = el('cbz-viewer');
     viewer.removeAttribute('hidden');
 
     if (typeof JSZip === 'undefined') {
-      viewer.innerHTML = '<p style="padding:2rem;color:var(--rd-muted)">JSZip not loaded. Add it to your project.</p>';
+      viewer.innerHTML = '<p style="padding:2rem;color:var(--rd-muted)">JSZip not loaded.</p>';
       hideLoading();
       return;
     }
 
-    const resp = await fetch(fileUrl);
-    const buf  = await resp.arrayBuffer();
-    const zip  = await JSZip.loadAsync(buf);
-    const IMG  = /\.(jpe?g|png|gif|webp|bmp)$/i;
+    const resp  = await fetch(fileUrl);
+    const buf   = await resp.arrayBuffer();
+    const zip   = await JSZip.loadAsync(buf);
+    const IMG   = /\.(jpe?g|png|gif|webp|bmp)$/i;
     const pages = Object.keys(zip.files).filter(n => IMG.test(n)).sort();
     const total = pages.length;
     let current = Math.min(initPage - 1, total - 1);
@@ -474,17 +493,17 @@
     prev.addEventListener('click', () => showPage(current - 1));
     next.addEventListener('click', () => showPage(current + 1));
     viewer.addEventListener('click', e => {
+      if (e.target === prev || prev.contains(e.target)) return;
+      if (e.target === next || next.contains(e.target)) return;
       const x = e.clientX / window.innerWidth;
       if (x < 0.35) showPage(current - 1);
       else if (x > 0.65) showPage(current + 1);
     });
     document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') showPage(current + 1);
       if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   showPage(current - 1);
     });
-
-    navigateTo = (_, page) => showPage(page - 1);
-    updateEpubStyles = () => {};
 
     const ul = document.createElement('ul');
     pages.forEach((name, i) => {
@@ -495,6 +514,8 @@
     });
     el('tab-toc').appendChild(ul);
 
+    navigateTo = (_, page) => showPage(page - 1);
+    updateContentStyles = () => {};
     await showPage(current);
     hideLoading();
   }
