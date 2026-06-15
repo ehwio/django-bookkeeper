@@ -176,16 +176,16 @@ def reader_view(request, slug):
             "user_book": user_book,
             "progress": progress,
             "reader_settings": reader_settings,
-            "highlights": list(
+            "highlights_json": json.dumps(list(
                 Highlight.objects.filter(user=request.user, book=book).values(
                     "id", "start_position", "end_position", "color", "note", "page_number"
                 )
-            ),
-            "bookmarks": list(
+            )),
+            "bookmarks_json": json.dumps(list(
                 Bookmark.objects.filter(user=request.user, book=book).values(
                     "id", "title", "position", "page_number", "note"
                 )
-            ),
+            )),
         },
     )
 

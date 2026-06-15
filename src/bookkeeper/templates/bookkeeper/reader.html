@@ -14,8 +14,8 @@
      data-file-url="{{ book.file.url }}"
      data-position="{{ progress.position|default:'' }}"
      data-page="{{ progress.page_number|default:1 }}"
-     data-highlights="{{ highlights|safe }}"
-     data-bookmarks="{{ bookmarks|safe }}"
+     data-highlights="{{ highlights_json }}"
+     data-bookmarks="{{ bookmarks_json }}"
      data-settings='{"fontSize":{{ reader_settings.font_size }},"fontFamily":"{{ reader_settings.font_family }}","lineHeight":{{ reader_settings.line_height }},"theme":"{{ reader_settings.theme }}","columnWidth":"{{ reader_settings.column_width }}"}'
      data-url-progress="{% url 'bookkeeper:api_progress' book.slug %}"
      data-url-rate="{% url 'bookkeeper:api_rate' book.slug %}"
@@ -40,8 +40,7 @@
 
     <div class="bk-reader-header-center">
       <span class="bk-reader-progress-text" id="reader-progress-text">
-        p.<span id="current-page">{{ progress.page_number|default:1 }}</span>
-        of {{ book.page_count }}
+        <span id="reader-loc-text">p.{{ progress.page_number|default:1 }}</span>
         · <span id="current-pct">{{ progress.percentage|floatformat:0|default:0 }}</span>%
       </span>
     </div>

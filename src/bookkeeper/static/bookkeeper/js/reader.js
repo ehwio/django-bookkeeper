@@ -41,7 +41,8 @@
       await apiPost(URL_PROGRESS, {
         position, page_number: page, percentage: parseFloat(pct.toFixed(1)),
       });
-      el('current-page').textContent = page;
+      const locEl = el('reader-loc-text');
+      if (locEl) locEl.textContent = 'p.' + page;
       el('current-pct').textContent  = Math.round(pct);
       el('reader-progress-fill').style.width = pct + '%';
     }, 1500);
@@ -212,7 +213,9 @@
   hlMenu.querySelectorAll('.bk-hl-color').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!pendingSelection) return;
-      await apiPost(URL_HL_CREATE, { ...pendingSelection, color: btn.dataset.color });
+      const color = btn.dataset.color;
+      await apiPost(URL_HL_CREATE, { ...pendingSelection, color });
+      applyHighlight(pendingSelection.start_position, color);
       hideHighlightMenu();
     });
   });
@@ -226,6 +229,7 @@
   // ── Shared stubs (overridden per-format) ─────────────────────
   let navigateTo = () => {};
   let updateContentStyles = () => {};
+  let applyHighlight = () => {};
 
   function hideLoading() { el('reader-loading').style.display = 'none'; }
 
@@ -265,8 +269,10 @@
 
     const book = ePub(fileUrl);
 
-    // Measure the available area and pass pixel dimensions so epub.js
-    // doesn't end up with a zero- or percent-height iframe.
+    // Wait for flex layout to resolve before measuring, otherwise epub.js
+    // gets a zero-height container and renders only a sliver of content.
+    await new Promise(r => requestAnimationFrame(r));
+
     const rect = area.getBoundingClientRect();
     const w = Math.max(rect.width  || area.offsetWidth  || 800, 200);
     const h = Math.max(rect.height || area.offsetHeight || 600, 300);
@@ -303,10 +309,30 @@
       });
     };
 
+    const hlColors = {
+      yellow: { fill: '#fef08a', 'fill-opacity': '0.4' },
+      green:  { fill: '#bbf7d0', 'fill-opacity': '0.4' },
+      blue:   { fill: '#bfdbfe', 'fill-opacity': '0.4' },
+      pink:   { fill: '#fbcfe8', 'fill-opacity': '0.4' },
+      orange: { fill: '#fed7aa', 'fill-opacity': '0.4' },
+    };
+
+    applyHighlight = (cfiRange, color) => {
+      try {
+        rendition.annotations.highlight(
+          cfiRange, {}, () => {}, 'bk-hl-' + color, hlColors[color] || hlColors.yellow
+        );
+      } catch (e) {
+        console.warn('highlight annotation failed:', e);
+      }
+    };
+
     rendition.on('relocated', loc => {
       const pg    = loc.start.displayed.page;
       const total = loc.start.displayed.total || 1;
       locSpan.textContent = `${pg} / ${total}`;
+      const locHeader = el('reader-loc-text');
+      if (locHeader) locHeader.textContent = `p.${pg}`;
       pendingBookmarkPos  = loc.start.cfi;
       pendingBookmarkPage = pg;
       saveProgress(loc.start.cfi, pg, (pg / total) * 100);
@@ -361,6 +387,7 @@
 
     updateContentStyles();
     await rendition.display(initPos || undefined);
+    allHighlights.forEach(hl => applyHighlight(hl.start_position, hl.color));
     hideLoading();
   }
 
