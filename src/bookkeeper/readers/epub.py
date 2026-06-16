@@ -11,6 +11,12 @@ from .base import BaseReader, ReaderError
 # media URLs in the upload view once images are saved to disk.
 IMG_PLACEHOLDER_PREFIX = "__BK_IMG__"
 
+# HTML5 void elements — legitimately self-closing, safe to leave as-is
+_HTML_VOID_ELEMENTS = frozenset({
+    "area", "base", "br", "col", "embed", "hr", "img",
+    "input", "link", "meta", "param", "source", "track", "wbr",
+})
+
 
 class EpubReader(BaseReader):
     def __init__(self, file_obj):
@@ -113,17 +119,32 @@ class EpubReader(BaseReader):
 
             body = soup.find("body") or soup
 
-            # Resolve image src paths relative to this item's position in the ZIP
+            # Resolve image paths relative to this item's position in the ZIP.
+            # Cover pages commonly use SVG <image xlink:href="..."> instead of
+            # <img src="...">, so both need rewriting.
             item_dir = os.path.dirname(item.get_name())
+
+            def _resolve(src: str, _dir: str = item_dir) -> str:
+                normalized = (
+                    os.path.normpath(os.path.join(_dir, src))
+                    .replace("\\", "/")
+                    .lstrip("/")
+                )
+                return IMG_PLACEHOLDER_PREFIX + normalized
+
             for img in body.find_all("img"):
                 src = img.get("src", "")
                 if src and not src.startswith(("http://", "https://", "data:")):
-                    normalized = (
-                        os.path.normpath(os.path.join(item_dir, src))
-                        .replace("\\", "/")
-                        .lstrip("/")
-                    )
-                    img["src"] = IMG_PLACEHOLDER_PREFIX + normalized
+                    img["src"] = _resolve(src)
+
+            for img in body.find_all("image"):
+                href_attr = next(
+                    (a for a in img.attrs if a == "href" or a.endswith(":href")), None
+                )
+                if href_attr:
+                    src = img[href_attr]
+                    if src and not src.startswith(("http://", "https://", "data:")):
+                        img[href_attr] = _resolve(src)
 
             # Rewrite internal links: keep fragment anchors, neutralize xhtml hrefs
             for a in body.find_all("a", href=True):
@@ -139,13 +160,25 @@ class EpubReader(BaseReader):
             for tag in body.find_all("script"):
                 tag.decompose()
 
-            # Re-serialize through an HTML parser before storing. lxml-xml emits
-            # self-closing tags (e.g. <a id="x"/>) which are valid XML but mean
-            # nothing to a browser's HTML5 parser — there, <a> is non-void, so
-            # the "/" is ignored and the tag stays open, swallowing the rest of
-            # the chapter into a link (and its color) until the next </a>.
-            html_fragment = BeautifulSoup(f"<div>{body.decode_contents()}</div>", "lxml").div
-            html = html_fragment.decode_contents()
+            # lxml-xml serializes empty elements with XML self-closing syntax
+            # (e.g. <a id="x"/>). That's meaningless to a browser's HTML5 parser:
+            # <a> is non-void there, so the "/" is ignored and the tag stays open,
+            # swallowing the rest of the chapter into a link (and its color)
+            # until the next </a>, which doesn't exist. Force an explicit empty
+            # text node on empty non-void, non-SVG elements so BeautifulSoup
+            # emits <a id="x"></a> instead. SVG elements are left alone — they
+            # legitimately self-close under HTML5's foreign-content parsing
+            # rules, and reparsing them through an HTML serializer would
+            # lowercase camelCase attributes like viewBox.
+            for el in body.find_all():
+                if (
+                    not el.contents
+                    and el.name not in _HTML_VOID_ELEMENTS
+                    and not el.find_parent("svg")
+                ):
+                    el.append("")
+
+            html = body.decode_contents()
             char_count = len(body.get_text())
             content_hash = hashlib.sha256(html.encode()).hexdigest()[:16]
 
