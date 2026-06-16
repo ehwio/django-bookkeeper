@@ -53,7 +53,7 @@
           <span class="bk-format-badge bk-format-{{ book.format }}">{{ book.get_format_display }}</span>
           {% if book.page_count %}<span class="bk-muted">{{ book.page_count }}p</span>{% endif %}
         </div>
-        <div class="bk-star-rating" data-rating="{{ ub.rating|default:0 }}" data-slug="{{ book.slug }}">
+        <div class="bk-star-rating" data-rating="{{ ub.rating|default:0 }}" data-slug="{{ book.slug }}" data-url-rate="{% url 'bookkeeper:api_rate' book.slug %}">
           {% for i in "12345" %}
           <button class="bk-star {% if ub.rating and ub.rating >= forloop.counter %}bk-star-filled{% endif %}"
                   data-value="{{ forloop.counter }}" aria-label="{{ forloop.counter }} star">★</button>

@@ -124,6 +124,7 @@ const BK = (() => {
   function initStarRatings() {
     document.querySelectorAll('.bk-star-rating').forEach(widget => {
       const slug = widget.dataset.slug;
+      const url = widget.dataset.urlRate;
       const stars = widget.querySelectorAll('.bk-star');
       let current = parseInt(widget.dataset.rating, 10) || 0;
 
@@ -138,7 +139,11 @@ const BK = (() => {
           current = next;
           paint(next);
           widget.dataset.rating = next;
-          await post(`/books/api/book/${slug}/rate/`, { rating: next });
+          if (!url) {
+            console.error('Star rating widget missing data-url-rate attribute', widget);
+            return;
+          }
+          await post(url, { rating: next });
         });
       });
     });
