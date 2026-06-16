@@ -17,6 +17,10 @@
      data-highlights="{{ highlights_json }}"
      data-bookmarks="{{ bookmarks_json }}"
      data-settings='{"fontSize":{{ reader_settings.font_size }},"fontFamily":"{{ reader_settings.font_family }}","lineHeight":{{ reader_settings.line_height }},"theme":"{{ reader_settings.theme }}","columnWidth":"{{ reader_settings.column_width }}"}'
+     data-has-chapters="{{ has_chapters|yesno:'true,false' }}"
+     data-chapter-count="{{ chapter_count }}"
+     data-chapter-index="{{ initial_chapter_index }}"
+     {% if has_chapters %}data-url-chapter="{% url 'bookkeeper:api_chapter' book.slug 0 %}"{% endif %}
      data-url-progress="{% url 'bookkeeper:api_progress' book.slug %}"
      data-url-rate="{% url 'bookkeeper:api_rate' book.slug %}"
      data-url-finish="{% url 'bookkeeper:api_finish' book.slug %}"
@@ -83,7 +87,7 @@
         <button class="bk-sidebar-tab" data-tab="bookmarks">Bookmarks</button>
         <button class="bk-sidebar-tab" data-tab="highlights">Highlights</button>
       </div>
-      <div class="bk-sidebar-panel" id="tab-toc"></div>
+      <div class="bk-sidebar-panel" id="tab-toc">{% if has_chapters %}<ul>{% for ch in all_chapters %}<li class="bk-toc-h1" data-chapter-index="{{ ch.spine_index }}">{% if ch.title %}{{ ch.title }}{% else %}Chapter {{ ch.spine_index }}{% endif %}</li>{% endfor %}</ul>{% endif %}</div>
       <div class="bk-sidebar-panel" id="tab-bookmarks" hidden></div>
       <div class="bk-sidebar-panel" id="tab-highlights" hidden></div>
     </aside>
@@ -94,7 +98,22 @@
         <div class="bk-spinner"></div>
         <p>Loading book…</p>
       </div>
-      <!-- EPUB: rendered by epub.js into this element -->
+      <!-- Native EPUB: extracted chapter HTML rendered directly -->
+      <div id="native-epub-viewer" hidden>
+        <div id="native-epub-content">
+          <div id="bk-chapter-content"></div>
+        </div>
+        <div class="bk-epub-nav">
+          <button class="bk-epub-nav-btn" id="native-prev" title="Previous chapter">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span id="native-chapter-loc" class="bk-muted"></span>
+          <button class="bk-epub-nav-btn" id="native-next" title="Next chapter">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+      <!-- EPUB via epub.js (fixed-layout or books without extracted chapters) -->
       <div id="epub-viewer" hidden>
         <div id="epub-area"></div>
         <div class="bk-epub-nav">
@@ -189,8 +208,8 @@
 {% endblock %}
 
 {% block extra_js %}
-{# epub.js for EPUB rendering #}
-{% if book.format == 'epub' %}
+{# epub.js only for EPUB books without extracted chapters (fixed-layout fallback) #}
+{% if book.format == 'epub' and not has_chapters %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
 {% endif %}

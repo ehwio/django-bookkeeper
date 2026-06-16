@@ -46,8 +46,14 @@ const BK = (() => {
     uploadModal.querySelector('.bk-modal-backdrop')?.addEventListener('click', closeUpload);
     document.getElementById('upload-cancel')?.addEventListener('click', closeUpload);
 
-    // File picker via drop zone click
-    dropZone.addEventListener('click', () => fileInput.click());
+    // File picker via drop zone click. The "browse" text is itself a
+    // <label for="file-input">, which already opens the picker natively —
+    // without this guard, clicking it bubbles up to this listener too and
+    // queues a second file dialog right behind the first.
+    dropZone.addEventListener('click', e => {
+      if (e.target.closest('label[for="file-input"]')) return;
+      fileInput.click();
+    });
     fileInput.addEventListener('change', () => {
       if (fileInput.files[0]) onFileSelected(fileInput.files[0]);
     });

@@ -100,6 +100,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         from bookkeeper.models import Book, BookFormat, UserBook
         from bookkeeper.readers import get_reader
+        from bookkeeper.views import _extract_epub_chapters
 
         username = options["user"]
         password = options["password"]
@@ -179,6 +180,10 @@ class Command(BaseCommand):
 
             book.save()
             UserBook.objects.create(user=user, book=book)
+
+            file_obj.seek(0)
+            _extract_epub_chapters(book, reader)
+
             imported += 1
             self.stdout.write(self.style.SUCCESS(" done"))
 

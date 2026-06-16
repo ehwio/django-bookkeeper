@@ -1,9 +1,21 @@
+import hashlib
 import io
+import os
 
 import ebooklib
 from ebooklib import epub
 
 from .base import BaseReader, ReaderError
+
+# Placeholder written into img src during extraction; replaced with real
+# media URLs in the upload view once images are saved to disk.
+IMG_PLACEHOLDER_PREFIX = "__BK_IMG__"
+
+# HTML5 void elements — legitimately self-closing, safe to leave as-is
+_HTML_VOID_ELEMENTS = frozenset({
+    "area", "base", "br", "col", "embed", "hr", "img",
+    "input", "link", "meta", "param", "source", "track", "wbr",
+})
 
 
 class EpubReader(BaseReader):
@@ -39,7 +51,6 @@ class EpubReader(BaseReader):
         }
 
     def extract_cover(self):
-        # Try epub cover metadata first
         cover_id = None
         for _name, value in self._book.get_metadata("OPF", "cover"):
             cover_id = value.get("content")
@@ -50,7 +61,6 @@ class EpubReader(BaseReader):
             if item:
                 return item.get_content(), item.media_type
 
-        # Fall back to first image item
         for item in self._book.get_items_of_type(ebooklib.ITEM_IMAGE):
             return item.get_content(), item.media_type
 
@@ -61,3 +71,133 @@ class EpubReader(BaseReader):
             item for item in self._book.get_items()
             if item.get_type() == ebooklib.ITEM_DOCUMENT
         ])
+
+    def is_fixed_layout(self) -> bool:
+        """True for pre-paginated EPUBs (manga, fixed-layout children's books)."""
+        for _name, value in self._book.get_metadata("OPF", "rendition:layout"):
+            if isinstance(value, dict) and value.get("content") == "pre-paginated":
+                return True
+            if value == "pre-paginated":
+                return True
+        return False
+
+    def extract_chapters(self) -> list[dict]:
+        """
+        Walk the EPUB spine and return one dict per spine item:
+            title        – text of the first heading found in the item
+            html         – sanitized inner HTML of <body>; image srcs are
+                           replaced with IMG_PLACEHOLDER_PREFIX + epub_path
+                           so the upload view can swap in real media URLs
+            char_count   – plain-text length (used for reading progress %)
+            content_hash – 16-char SHA-256 prefix (stale-offset guard)
+        """
+        try:
+            from bs4 import BeautifulSoup
+        except ImportError as e:
+            raise ReaderError("beautifulsoup4 is required for chapter extraction") from e
+
+        chapters = []
+
+        for spine_id, _linear in self._book.spine:
+            item = self._book.get_item_with_id(spine_id)
+            if item is None or item.get_type() != ebooklib.ITEM_DOCUMENT:
+                continue
+
+            raw = item.get_content()
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8", errors="replace")
+
+            soup = BeautifulSoup(raw, "lxml-xml")
+
+            # Title: first heading element in the item
+            title = ""
+            for tag in ("h1", "h2", "h3"):
+                el = soup.find(tag)
+                if el:
+                    title = el.get_text(strip=True)
+                    break
+
+            body = soup.find("body") or soup
+
+            # Resolve image paths relative to this item's position in the ZIP.
+            # Cover pages commonly use SVG <image xlink:href="..."> instead of
+            # <img src="...">, so both need rewriting.
+            item_dir = os.path.dirname(item.get_name())
+
+            def _resolve(src: str, _dir: str = item_dir) -> str:
+                normalized = (
+                    os.path.normpath(os.path.join(_dir, src))
+                    .replace("\\", "/")
+                    .lstrip("/")
+                )
+                return IMG_PLACEHOLDER_PREFIX + normalized
+
+            for img in body.find_all("img"):
+                src = img.get("src", "")
+                if src and not src.startswith(("http://", "https://", "data:")):
+                    img["src"] = _resolve(src)
+
+            for img in body.find_all("image"):
+                href_attr = next(
+                    (a for a in img.attrs if a == "href" or a.endswith(":href")), None
+                )
+                if href_attr:
+                    src = img[href_attr]
+                    if src and not src.startswith(("http://", "https://", "data:")):
+                        img[href_attr] = _resolve(src)
+
+            # Rewrite internal links: keep fragment anchors, neutralize xhtml hrefs
+            for a in body.find_all("a", href=True):
+                href = a["href"]
+                if href.startswith(("http://", "https://", "mailto:")):
+                    continue
+                if "#" in href:
+                    a["href"] = "#" + href.split("#", 1)[1]
+                else:
+                    a["href"] = "#"
+
+            # Strip any script tags
+            for tag in body.find_all("script"):
+                tag.decompose()
+
+            # lxml-xml serializes empty elements with XML self-closing syntax
+            # (e.g. <a id="x"/>). That's meaningless to a browser's HTML5 parser:
+            # <a> is non-void there, so the "/" is ignored and the tag stays open,
+            # swallowing the rest of the chapter into a link (and its color)
+            # until the next </a>, which doesn't exist. Force an explicit empty
+            # text node on empty non-void, non-SVG elements so BeautifulSoup
+            # emits <a id="x"></a> instead. SVG elements are left alone — they
+            # legitimately self-close under HTML5's foreign-content parsing
+            # rules, and reparsing them through an HTML serializer would
+            # lowercase camelCase attributes like viewBox.
+            for el in body.find_all():
+                if (
+                    not el.contents
+                    and el.name not in _HTML_VOID_ELEMENTS
+                    and not el.find_parent("svg")
+                ):
+                    el.append("")
+
+            html = body.decode_contents()
+            char_count = len(body.get_text())
+            content_hash = hashlib.sha256(html.encode()).hexdigest()[:16]
+
+            chapters.append({
+                "title": title,
+                "html": html,
+                "char_count": char_count,
+                "content_hash": content_hash,
+            })
+
+        return chapters
+
+    def extract_images(self) -> dict[str, tuple[bytes, str]]:
+        """
+        Return {epub_path: (bytes, media_type)} for every image in the EPUB.
+        epub_path is the item's normalized name within the ZIP (no leading slash).
+        """
+        result = {}
+        for item in self._book.get_items_of_type(ebooklib.ITEM_IMAGE):
+            name = item.get_name().lstrip("/")
+            result[name] = (item.get_content(), item.media_type)
+        return result

@@ -4,11 +4,15 @@
   const el = id => document.getElementById(id);
   const reader    = el('bk-reader');
 
-  const slug      = reader.dataset.slug;
-  const format    = reader.dataset.format;
-  const fileUrl   = reader.dataset.fileUrl;
-  const initPos   = reader.dataset.position;
-  const initPage  = parseInt(reader.dataset.page, 10) || 1;
+  const slug         = reader.dataset.slug;
+  const format       = reader.dataset.format;
+  const fileUrl      = reader.dataset.fileUrl;
+  const initPos      = reader.dataset.position;
+  const initPage     = parseInt(reader.dataset.page, 10) || 1;
+  const hasChapters  = reader.dataset.hasChapters === 'true';
+  const chapterCount = parseInt(reader.dataset.chapterCount, 10) || 0;
+  const initChapter  = parseInt(reader.dataset.chapterIndex, 10) || 0;
+  const URL_CHAPTER  = reader.dataset.urlChapter || '';
   const allHighlights = JSON.parse(reader.dataset.highlights || '[]');
   const allBookmarks  = JSON.parse(reader.dataset.bookmarks  || '[]');
   let settings = JSON.parse(reader.dataset.settings || '{}');
@@ -214,7 +218,17 @@
     btn.addEventListener('click', async () => {
       if (!pendingSelection) return;
       const color = btn.dataset.color;
-      await apiPost(URL_HL_CREATE, { ...pendingSelection, color });
+      const result = await apiPost(URL_HL_CREATE, { ...pendingSelection, color });
+      if (result.ok) {
+        allHighlights.push({
+          id: result.id,
+          start_position: pendingSelection.start_position,
+          end_position: pendingSelection.end_position,
+          color,
+          note: '',
+          page_number: pendingSelection.page_number,
+        });
+      }
       applyHighlight(pendingSelection.start_position, color);
       hideHighlightMenu();
     });
@@ -236,9 +250,10 @@
   applyFontSettings();
 
   try {
-    if (format === 'epub')      await loadEpub();
-    else if (format === 'pdf')  await loadPdf();
-    else if (format === 'cbz')  await loadCbz();
+    if (format === 'epub' && hasChapters) await loadNativeEpub();
+    else if (format === 'epub')           await loadEpub();
+    else if (format === 'pdf')            await loadPdf();
+    else if (format === 'cbz')            await loadCbz();
     else {
       el('reader-loading').innerHTML =
         `<p style="color:var(--rd-muted)">Unknown format: ${format}</p>`;
@@ -556,6 +571,205 @@
     navigateTo = (_, page) => showPage(page - 1);
     updateContentStyles = () => {};
     await showPage(current);
+    hideLoading();
+  }
+
+  // ==============================================================
+  // Native EPUB — extracted chapter HTML rendered directly in DOM
+  // ==============================================================
+  async function loadNativeEpub() {
+    const viewer   = el('native-epub-viewer');
+    const viewport = el('native-epub-content');
+    const content  = el('bk-chapter-content');
+    const prevBtn  = el('native-prev');
+    const nextBtn  = el('native-next');
+    const locSpan  = el('native-chapter-loc');
+
+    viewer.removeAttribute('hidden');
+
+    // ── Position helpers ──────────────────────────────────────────
+    // Positions are stored as "chapterIndex:charOffset" strings.
+
+    function charOffsetAt(root, targetNode, targetOffset) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let total = 0, n;
+      while ((n = walker.nextNode())) {
+        if (n === targetNode) return total + targetOffset;
+        total += n.textContent.length;
+      }
+      return total;
+    }
+
+    function nodeAtOffset(root, charOffset) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let remaining = charOffset, n;
+      while ((n = walker.nextNode())) {
+        if (remaining <= n.textContent.length) return { node: n, offset: remaining };
+        remaining -= n.textContent.length;
+      }
+      return null;
+    }
+
+    function scrollToOffset(charOffset) {
+      if (!charOffset) return;
+      const pos = nodeAtOffset(content, charOffset);
+      if (!pos) return;
+      const range = document.createRange();
+      range.setStart(pos.node, pos.offset);
+      range.collapse(true);
+      const rect    = range.getBoundingClientRect();
+      const vpRect  = viewport.getBoundingClientRect();
+      viewport.scrollTop += rect.top - vpRect.top - 80;
+    }
+
+    function charOffsetAtScrollTop() {
+      const vpRect = viewport.getBoundingClientRect();
+      const x = vpRect.left + vpRect.width / 2;
+      const y = vpRect.top + 60;
+      let node, offset;
+      if (document.caretRangeFromPoint) {
+        const r = document.caretRangeFromPoint(x, y);
+        if (r) { node = r.startContainer; offset = r.startOffset; }
+      } else if (document.caretPositionFromPoint) {
+        const p = document.caretPositionFromPoint(x, y);
+        if (p) { node = p.offsetNode; offset = p.offset; }
+      }
+      if (node && content.contains(node)) return charOffsetAt(content, node, offset);
+      return 0;
+    }
+
+    // ── Highlights via CSS Custom Highlight API ───────────────────
+    function applyChapterHighlights(chapterIndex) {
+      if (!CSS.highlights) return;
+      CSS.highlights.clear();
+      const prefix = `${chapterIndex}:`;
+      const byColor = {};
+      allHighlights
+        .filter(hl => hl.start_position?.startsWith(prefix))
+        .forEach(hl => {
+          const startOff = parseInt(hl.start_position.split(':')[1], 10);
+          const endOff   = parseInt(hl.end_position.split(':')[1], 10);
+          const s = nodeAtOffset(content, startOff);
+          const e = nodeAtOffset(content, endOff);
+          if (!s || !e) return;
+          const range = document.createRange();
+          range.setStart(s.node, s.offset);
+          range.setEnd(e.node, e.offset);
+          (byColor[hl.color] ??= []).push(range);
+        });
+      Object.entries(byColor).forEach(([color, ranges]) => {
+        CSS.highlights.set(`bk-hl-${color}`, new Highlight(...ranges));
+      });
+    }
+
+    // ── Chapter fetching & rendering ─────────────────────────────
+    let currentIndex = initChapter;
+
+    function chapterUrl(index) {
+      return URL_CHAPTER.replace('/0/', `/${index}/`);
+    }
+
+    async function loadChapter(index, charOffset = 0) {
+      const res  = await fetch(chapterUrl(index));
+      const data = await res.json();
+
+      content.innerHTML = data.html;
+      currentIndex = index;
+
+      prevBtn.disabled = !data.has_prev;
+      nextBtn.disabled = !data.has_next;
+      locSpan.textContent = `${index + 1} / ${data.total}`;
+
+      const locHeader = el('reader-loc-text');
+      if (locHeader) locHeader.textContent = `ch.${index + 1}`;
+
+      updateContentStyles();
+      viewport.scrollTop = 0;
+      if (charOffset) scrollToOffset(charOffset);
+
+      applyChapterHighlights(index);
+
+      pendingBookmarkPos  = `${index}:0`;
+      pendingBookmarkPage = index + 1;
+    }
+
+    // ── Content styles (font/theme from settings panel) ──────────
+    updateContentStyles = () => {
+      content.style.fontSize   = settings.fontSize + 'px';
+      content.style.fontFamily = settings.fontFamily;
+      content.style.lineHeight = settings.lineHeight;
+      const widthMap = { narrow: '560px', normal: '680px', wide: '860px' };
+      content.style.maxWidth = widthMap[settings.columnWidth] || '680px';
+    };
+
+    // ── Scroll → progress ─────────────────────────────────────────
+    let scrollTimer;
+    viewport.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        const charOff = charOffsetAtScrollTop();
+        const pos = `${currentIndex}:${charOff}`;
+        const scrolled = viewport.scrollTop / Math.max(1, viewport.scrollHeight - viewport.clientHeight);
+        const pct = ((currentIndex + scrolled) / chapterCount) * 100;
+        pendingBookmarkPos  = pos;
+        pendingBookmarkPage = currentIndex + 1;
+        saveProgress(pos, currentIndex + 1, pct);
+      }, 800);
+    });
+
+    // ── Selection → highlight menu ────────────────────────────────
+    document.addEventListener('mouseup', () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) return;
+      const text = sel.toString().trim();
+      if (!text || !content.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
+      const range    = sel.getRangeAt(0);
+      const startOff = charOffsetAt(content, range.startContainer, range.startOffset);
+      const endOff   = charOffsetAt(content, range.endContainer, range.endOffset);
+      const rect     = range.getBoundingClientRect();
+      showHighlightMenu(rect.right, rect.bottom, {
+        start_position: `${currentIndex}:${startOff}`,
+        end_position:   `${currentIndex}:${endOff}`,
+        text,
+        page_number: currentIndex + 1,
+      });
+    });
+
+    // Wire the outer applyHighlight stub to repaint this chapter
+    applyHighlight = () => applyChapterHighlights(currentIndex);
+
+    // ── Navigation ────────────────────────────────────────────────
+    prevBtn.addEventListener('click', () => {
+      if (currentIndex > 0) loadChapter(currentIndex - 1);
+    });
+    nextBtn.addEventListener('click', () => {
+      if (currentIndex < chapterCount - 1) loadChapter(currentIndex + 1);
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight') nextBtn.click();
+      if (e.key === 'ArrowLeft')  prevBtn.click();
+    });
+
+    // TOC clicks (chapter index stored in data-chapter-index)
+    el('tab-toc').addEventListener('click', e => {
+      const li = e.target.closest('[data-chapter-index]');
+      if (li) loadChapter(parseInt(li.dataset.chapterIndex, 10));
+    });
+
+    navigateTo = pos => {
+      if (!pos) return;
+      const [idx, off] = pos.split(':').map(Number);
+      loadChapter(idx, off || 0);
+    };
+
+    // ── Initial load ──────────────────────────────────────────────
+    let initCharOffset = 0;
+    if (initPos && initPos.includes(':')) {
+      initCharOffset = parseInt(initPos.split(':')[1], 10) || 0;
+    }
+    await loadChapter(initChapter, initCharOffset);
     hideLoading();
   }
 })();
