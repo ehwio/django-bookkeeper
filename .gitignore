@@ -1,3 +1,4 @@
+.DS_Store
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -10,6 +11,7 @@ venv/
 *.sqlite3
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 .ruff_cache/
 *.mo
@@ -17,3 +19,5 @@ htmlcov/
 /media/
 /static-collected/
 node_modules/
+demo/media/
+demo/demo.sqlite3

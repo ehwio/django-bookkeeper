@@ -2,10 +2,15 @@
    Bookkeeper — Reader stylesheet
    ============================================================ */
 
-/* Override body for full-bleed reader */
+/* Full-bleed reader: remove body scroll and main padding */
 body:has(#bk-reader) {
   overflow: hidden;
   height: 100vh;
+}
+body:has(#bk-reader) .bk-main {
+  padding: 0;
+  max-width: none;
+  margin: 0;
 }
 
 /* Theme variables injected by JS onto #bk-reader */
@@ -208,12 +213,95 @@ body:has(#bk-reader) {
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
-#epub-viewer iframe {
+#epub-area {
   flex: 1;
-  border: none;
+  overflow: hidden;
   background: var(--rd-surface);
 }
+#epub-area iframe {
+  border: none !important;
+  background: var(--rd-surface);
+}
+.bk-epub-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: .5rem;
+  background: var(--rd-header);
+  border-top: 1px solid var(--rd-border);
+  flex-shrink: 0;
+}
+.bk-epub-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--rd-border);
+  border-radius: 50%;
+  background: var(--rd-surface);
+  color: var(--rd-text);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.bk-epub-nav-btn:hover { background: var(--rd-border); }
+#epub-loc { font-size: .8rem; color: var(--rd-muted); min-width: 5rem; text-align: center; }
+
+/* Ensure hidden attribute works on viewer divs whose display is set in author CSS */
+#native-epub-viewer[hidden],
+#epub-viewer[hidden],
+#pdf-viewer[hidden],
+#cbz-viewer[hidden] { display: none; }
+
+/* Native EPUB viewer */
+#native-epub-viewer {
+  flex: 1;
+  min-height: 0; /* required: prevents flex child from overflowing parent height */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#native-epub-content {
+  flex: 1;
+  min-height: 0; /* required: allows scroll within constrained flex height */
+  overflow-y: auto;
+  background: var(--rd-surface);
+}
+#bk-chapter-content {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 4rem;
+  line-height: 1.8;
+}
+#bk-chapter-content p       { margin: 0 0 1em; }
+#bk-chapter-content h1,
+#bk-chapter-content h2,
+#bk-chapter-content h3      { font-family: system-ui, sans-serif; margin: 2em 0 .5em; }
+#bk-chapter-content em,
+#bk-chapter-content i       { font-style: italic; }
+#bk-chapter-content strong,
+#bk-chapter-content b       { font-weight: 700; }
+#bk-chapter-content blockquote {
+  border-left: 3px solid var(--rd-border);
+  margin: 1.5em 0;
+  padding-left: 1.5em;
+  color: var(--rd-muted);
+}
+#bk-chapter-content img     { max-width: 100%; height: auto; border-radius: 4px; }
+#bk-chapter-content a       { color: var(--bk-accent, #7c3aed); }
+#bk-chapter-content pre,
+#bk-chapter-content code    { font-family: monospace; background: var(--rd-border);
+                               padding: .1em .3em; border-radius: 3px; }
+
+/* CSS Custom Highlight API — painted by JS for new and restored highlights */
+::highlight(bk-hl-yellow) { background-color: #fef08a; }
+::highlight(bk-hl-green)  { background-color: #bbf7d0; }
+::highlight(bk-hl-blue)   { background-color: #bfdbfe; }
+::highlight(bk-hl-pink)   { background-color: #fbcfe8; }
+::highlight(bk-hl-orange) { background-color: #fed7aa; }
 
 /* PDF viewer */
 #pdf-viewer {

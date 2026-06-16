@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-bookkeeper"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ)"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -28,6 +28,8 @@ dependencies = [
     "ebooklib>=0.18",
     "PyMuPDF>=1.24",
     "python-magic>=0.4.27",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
 ]
 
 [project.optional-dependencies]

@@ -46,8 +46,14 @@ const BK = (() => {
     uploadModal.querySelector('.bk-modal-backdrop')?.addEventListener('click', closeUpload);
     document.getElementById('upload-cancel')?.addEventListener('click', closeUpload);
 
-    // File picker via drop zone click
-    dropZone.addEventListener('click', () => fileInput.click());
+    // File picker via drop zone click. The "browse" text is itself a
+    // <label for="file-input">, which already opens the picker natively —
+    // without this guard, clicking it bubbles up to this listener too and
+    // queues a second file dialog right behind the first.
+    dropZone.addEventListener('click', e => {
+      if (e.target.closest('label[for="file-input"]')) return;
+      fileInput.click();
+    });
     fileInput.addEventListener('change', () => {
       if (fileInput.files[0]) onFileSelected(fileInput.files[0]);
     });
@@ -59,7 +65,12 @@ const BK = (() => {
       e.preventDefault();
       dropZone.classList.remove('dragover');
       const f = e.dataTransfer.files[0];
-      if (f) onFileSelected(f);
+      if (!f) return;
+      // Put the dropped file into the actual input so FormData picks it up
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      fileInput.files = dt.files;
+      onFileSelected(f);
     });
 
     function onFileSelected(file) {
@@ -89,7 +100,7 @@ const BK = (() => {
 
       const fd = new FormData(form);
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', '/books/upload/');
+      xhr.open('POST', form.action);
       xhr.setRequestHeader('X-CSRFToken', csrfToken());
 
       xhr.upload.onprogress = ev => {
@@ -113,6 +124,7 @@ const BK = (() => {
   function initStarRatings() {
     document.querySelectorAll('.bk-star-rating').forEach(widget => {
       const slug = widget.dataset.slug;
+      const url = widget.dataset.urlRate;
       const stars = widget.querySelectorAll('.bk-star');
       let current = parseInt(widget.dataset.rating, 10) || 0;
 
@@ -127,7 +139,11 @@ const BK = (() => {
           current = next;
           paint(next);
           widget.dataset.rating = next;
-          await post(`/books/api/book/${slug}/rate/`, { rating: next });
+          if (!url) {
+            console.error('Star rating widget missing data-url-rate attribute', widget);
+            return;
+          }
+          await post(url, { rating: next });
         });
       });
     });
