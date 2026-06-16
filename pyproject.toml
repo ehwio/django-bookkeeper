@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-bookkeeper"
-version = "0.2.0"
+version = "0.2.1"
 description = "A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ)"
 readme = "README.md"
 license = { file = "LICENSE" }
