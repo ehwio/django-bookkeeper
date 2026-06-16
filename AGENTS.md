@@ -121,20 +121,10 @@ pulling a fix to extraction code.
 
 ## Release process
 
-Versioning is currently manual (static `version` in `pyproject.toml`,
-not git-tag-derived).
-
-1. Bump `version` in `pyproject.toml`.
-2. Commit, merge to `main` via the normal release-branch flow.
-3. Tag and push `vX.Y.Z` — this triggers `publish-testpypi.yml`, which
-   verifies the tag matches the `pyproject.toml` version and publishes to
-   **test.pypi.org** via OIDC trusted publishing.
-4. Verify the TestPyPI release installs and works correctly.
-5. Cut a GitHub Release from that tag — this triggers `publish-pypi.yml`,
-   which publishes to **pypi.org**.
-
-Both publish workflows gate on the CI workflow (lint + test matrix)
-passing first, via `workflow_call`. Trusted publisher config (on both
-PyPI and TestPyPI) must reference the exact workflow filename and
-environment name — see `.github/workflows/publish-*.yml` for the
-environment names (`testpypi` / `pypi`).
+See [RELEASING.md](RELEASING.md) for the full step-by-step process. Short
+version: versioning is manual (static `version` in `pyproject.toml`, not
+git-tag-derived) — bump it on a `release/*` branch, merge to `main`, tag
+`vX.Y.Z` (ships to TestPyPI), verify, then cut a GitHub Release from that
+tag (ships to PyPI). **Don't skip merging `main` back into `develop`
+after a release** — that step was missed once already and caused
+`develop`'s version string to drift out of sync with `main`.
