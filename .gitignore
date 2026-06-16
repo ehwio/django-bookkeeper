@@ -11,6 +11,7 @@ venv/
 *.sqlite3
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 .ruff_cache/
 *.mo
