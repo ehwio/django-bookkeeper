@@ -55,7 +55,7 @@
 
     <div class="bk-detail-rating">
       <label>Your rating:</label>
-      <div class="bk-star-rating bk-star-rating-lg" data-rating="{{ user_book.rating|default:0 }}" data-slug="{{ book.slug }}">
+      <div class="bk-star-rating bk-star-rating-lg" data-rating="{{ user_book.rating|default:0 }}" data-slug="{{ book.slug }}" data-url-rate="{% url 'bookkeeper:api_rate' book.slug %}">
         {% for i in "12345" %}
         <button class="bk-star {% if user_book.rating and user_book.rating >= forloop.counter %}bk-star-filled{% endif %}"
                 data-value="{{ forloop.counter }}" aria-label="{{ forloop.counter }} star">★</button>
