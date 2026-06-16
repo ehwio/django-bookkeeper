@@ -139,7 +139,13 @@ class EpubReader(BaseReader):
             for tag in body.find_all("script"):
                 tag.decompose()
 
-            html = body.decode_contents()
+            # Re-serialize through an HTML parser before storing. lxml-xml emits
+            # self-closing tags (e.g. <a id="x"/>) which are valid XML but mean
+            # nothing to a browser's HTML5 parser — there, <a> is non-void, so
+            # the "/" is ignored and the tag stays open, swallowing the rest of
+            # the chapter into a link (and its color) until the next </a>.
+            html_fragment = BeautifulSoup(f"<div>{body.decode_contents()}</div>", "lxml").div
+            html = html_fragment.decode_contents()
             char_count = len(body.get_text())
             content_hash = hashlib.sha256(html.encode()).hexdigest()[:16]
 
