@@ -127,6 +127,9 @@ uv run ruff check src/ tests/
 - `fix/*` — bug fixes
 - `release/*` — release prep
 
+See [RELEASING.md](RELEASING.md) for the step-by-step release process
+(TestPyPI → PyPI via GitHub Actions).
+
 ## License
 
 MIT
