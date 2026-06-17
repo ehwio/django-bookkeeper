@@ -39,9 +39,15 @@
 
   // ── Progress tracking ─────────────────────────────────────────
   let progressTimer;
-  function saveProgress(position, page, pct) {
+  let pendingProgress = null;
+
+  // Flush any pending save immediately (used by beforeunload/visibilitychange)
+  async function flushProgress() {
+    if (!pendingProgress) return;
+    const { position, page, pct } = pendingProgress;
+    pendingProgress = null;
     clearTimeout(progressTimer);
-    progressTimer = setTimeout(async () => {
+    try {
       await apiPost(URL_PROGRESS, {
         position, page_number: page, percentage: parseFloat(pct.toFixed(1)),
       });
@@ -49,8 +55,26 @@
       if (locEl) locEl.textContent = 'p.' + page;
       el('current-pct').textContent  = Math.round(pct);
       el('reader-progress-fill').style.width = pct + '%';
+    } catch (_) {
+      // ignore network errors on unload — nothing we can do
+    }
+  }
+
+  function saveProgress(position, page, pct) {
+    pendingProgress = { position, page, pct };
+    clearTimeout(progressTimer);
+    progressTimer = setTimeout(async () => {
+      await flushProgress();
     }, 1500);
   }
+
+  // Flush on visibility change (user switching tabs or minimizing)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushProgress();
+  });
+
+  // Flush before the page unloads — user navigating away or closing tab
+  window.addEventListener('beforeunload', () => flushProgress());
 
   // ── Reader settings ───────────────────────────────────────────
   function applyTheme(theme) {
