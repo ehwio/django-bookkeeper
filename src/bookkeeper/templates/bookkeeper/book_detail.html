@@ -95,6 +95,15 @@
     </div>
     {% endif %}
 
+    {% if book.amazon_url %}
+    <div class="bk-detail-amazon">
+      <a href="{{ book.amazon_url }}" target="_blank" rel="noopener sponsored" class="bk-btn">
+        Buy on Amazon
+      </a>
+      <p class="bk-affiliate-disclosure">As an Amazon Associate, we earn from qualifying purchases.</p>
+    </div>
+    {% endif %}
+
     {% if bookmarks %}
     <div class="bk-detail-section">
       <h2>Bookmarks ({{ bookmarks.count }})</h2>
