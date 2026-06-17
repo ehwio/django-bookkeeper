@@ -6,9 +6,10 @@ import re
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
@@ -86,29 +87,23 @@ class BookDetailView(LoginRequiredMixin, DetailView):
         return ctx
 
 
-class BookEditView(LoginRequiredMixin, DetailView):
-    """Render the metadata edit form for a book."""
-
-    model = Book
-    template_name = "bookkeeper/book_edit.html"
-    context_object_name = "book"
-
-
 @login_required
 def book_edit(request, slug):
     """Handle metadata form submission for a book."""
     book = get_object_or_404(Book, slug=slug)
+    if book.added_by != request.user:
+        raise PermissionDenied
+    saved = False
     if request.method == "POST":
         form = BookMetadataForm(request.POST, instance=book)
         if form.is_valid():
             form.save()
-            return render(
-                request, "bookkeeper/book_edit.html",
-                {"book": book, "form": form, "saved": True}
-            )
+            return redirect(f"{reverse('bookkeeper:book_edit', args=[slug])}?saved=1")
     else:
+        saved = request.GET.get("saved") == "1"
         form = BookMetadataForm(instance=book)
-    return render(request, "bookkeeper/book_edit.html", {"book": book, "form": form})
+    ctx = {"book": book, "form": form, "saved": saved}
+    return render(request, "bookkeeper/book_edit.html", ctx)
 
 
 # ---------------------------------------------------------------------------
