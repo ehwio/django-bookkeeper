@@ -8,12 +8,14 @@ urlpatterns = [
     path("", views.LibraryView.as_view(), name="library"),
     path("upload/", views.upload_book, name="upload"),
     path("book/<slug:slug>/", views.BookDetailView.as_view(), name="book_detail"),
+    path("book/<slug:slug>/edit/", views.book_edit, name="book_edit"),
     path("book/<slug:slug>/read/", views.reader_view, name="reader"),
     # API
     path("api/book/<slug:slug>/progress/", views.api_progress, name="api_progress"),
     path("api/book/<slug:slug>/rate/", views.api_rate, name="api_rate"),
     path("api/book/<slug:slug>/finish/", views.api_finish, name="api_finish"),
     path("api/book/<slug:slug>/favorite/", views.api_favorite, name="api_favorite"),
+    path("api/book/<slug:slug>/delete/", views.api_delete, name="api_delete"),
     path("api/book/<slug:slug>/cover/", views.api_cover, name="api_cover"),
     path("api/book/<slug:slug>/page/<int:index>/", views.api_comic_page, name="api_comic_page"),
     path(

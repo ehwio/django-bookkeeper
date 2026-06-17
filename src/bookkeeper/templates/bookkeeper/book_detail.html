@@ -41,6 +41,9 @@
     {% endif %}
 
     <div class="bk-detail-actions">
+      {% if user == book.added_by %}
+      <a href="{% url 'bookkeeper:book_edit' book.slug %}" class="bk-btn">Edit Details</a>
+      {% endif %}
       <button class="bk-btn bk-favorite-btn {% if user_book.is_favorite %}active{% endif %}"
               data-slug="{{ book.slug }}" data-url="{% url 'bookkeeper:api_favorite' book.slug %}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="{% if user_book.is_favorite %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
@@ -55,6 +58,9 @@
       {% else %}
       <span class="bk-badge bk-badge-finished">Finished ✓</span>
       {% endif %}
+      <button class="bk-btn bk-delete-btn" data-url="{% url 'bookkeeper:api_delete' book.slug %}">
+        Delete from Library
+      </button>
     </div>
   </div>
 
@@ -144,6 +150,11 @@ document.querySelector('.bk-finish-btn')?.addEventListener('click', async functi
   this.replaceWith(Object.assign(document.createElement('span'), {
     className: 'bk-badge bk-badge-finished', textContent: 'Finished ✓'
   }));
+});
+document.querySelector('.bk-delete-btn')?.addEventListener('click', async function() {
+  if (!confirm('Remove this book from your library? The book will not be deleted — you can add it back anytime.')) return;
+  const res = await BK.post(this.dataset.url);
+  if (res.redirect) window.location.href = res.redirect;
 });
 const coverInput = document.getElementById('bk-cover-input');
 const coverError = document.querySelector('.bk-cover-error');

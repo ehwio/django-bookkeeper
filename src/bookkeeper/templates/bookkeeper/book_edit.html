@@ -1,0 +1,68 @@
+{% extends "bookkeeper/base.html" %}
+
+{% block title %}Edit {{ book.title }} — Bookkeeper{% endblock %}
+
+{% block content %}
+<div class="bk-book-edit">
+  <div class="bk-edit-header">
+    <a href="{% url 'bookkeeper:book_detail' book.slug %}" class="bk-back-link">
+      ← Back to {{ book.title }}
+    </a>
+    <h1>Edit Book Details</h1>
+  </div>
+
+  {% if saved %}
+  <div class="bk-alert bk-alert-success">Changes saved successfully.</div>
+  {% endif %}
+
+  <form method="post" class="bk-edit-form" action="{% url 'bookkeeper:book_edit' book.slug %}">
+    {% csrf_token %}
+    <div class="bk-field">
+      <label for="id_title">Title</label>
+      <input type="text" id="id_title" name="title" value="{{ form.title.value|default:book.title }}" class="bk-input" maxlength="500" required>
+      {% if form.title.errors %}<span class="bk-error">{{ form.title.errors.0 }}</span>{% endif %}
+    </div>
+
+    <div class="bk-field">
+      <label for="id_author">Author</label>
+      <input type="text" id="id_author" name="author" value="{{ form.author.value|default:book.author }}" class="bk-input" maxlength="500">
+      {% if form.author.errors %}<span class="bk-error">{{ form.author.errors.0 }}</span>{% endif %}
+    </div>
+
+    <div class="bk-field">
+      <label for="id_description">Description</label>
+      <textarea id="id_description" name="description" class="bk-textarea" rows="4">{{ form.description.value|default:book.description }}</textarea>
+      {% if form.description.errors %}<span class="bk-error">{{ form.description.errors.0 }}</span>{% endif %}
+    </div>
+
+    <div class="bk-field">
+      <label for="id_publisher">Publisher</label>
+      <input type="text" id="id_publisher" name="publisher" value="{{ form.publisher.value|default:book.publisher }}" class="bk-input" maxlength="300">
+      {% if form.publisher.errors %}<span class="bk-error">{{ form.publisher.errors.0 }}</span>{% endif %}
+    </div>
+
+    <div class="bk-field">
+      <label for="id_published_date">Published Date</label>
+      <input type="text" id="id_published_date" name="published_date" value="{{ form.published_date.value|default:book.published_date }}" class="bk-input" maxlength="50" placeholder="e.g. 2023 or March 2023">
+      {% if form.published_date.errors %}<span class="bk-error">{{ form.published_date.errors.0 }}</span>{% endif %}
+    </div>
+
+    <div class="bk-field">
+      <label for="id_isbn">ISBN</label>
+      <input type="text" id="id_isbn" name="isbn" value="{{ form.isbn.value|default:book.isbn }}" class="bk-input" maxlength="20">
+      {% if form.isbn.errors %}<span class="bk-error">{{ form.isbn.errors.0 }}</span>{% endif %}
+    </div>
+
+    <div class="bk-field">
+      <label for="id_language">Language</label>
+      <input type="text" id="id_language" name="language" value="{{ form.language.value|default:book.language }}" class="bk-input" maxlength="10" placeholder="e.g. en">
+      {% if form.language.errors %}<span class="bk-error">{{ form.language.errors.0 }}</span>{% endif %}
+    </div>
+
+    <div class="bk-edit-actions">
+      <a href="{% url 'bookkeeper:book_detail' book.slug %}" class="bk-btn">Cancel</a>
+      <button type="submit" class="bk-btn bk-btn-primary">Save Changes</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
