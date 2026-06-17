@@ -24,6 +24,11 @@
         <option value="{{ val }}" {% if selected_format == val %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
+      <select name="sort" class="bk-select" onchange="this.form.submit()">
+        {% for val, label in sort_options %}
+        <option value="{{ val }}" {% if selected_sort == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
     </form>
   </div>
 
@@ -71,11 +76,11 @@
   {% if is_paginated %}
   <nav class="bk-pagination">
     {% if page_obj.has_previous %}
-    <a href="?page={{ page_obj.previous_page_number }}&q={{ query }}&format={{ selected_format }}" class="bk-btn">← Previous</a>
+    <a href="?page={{ page_obj.previous_page_number }}&q={{ query }}&format={{ selected_format }}&sort={{ selected_sort }}" class="bk-btn">← Previous</a>
     {% endif %}
     <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}&q={{ query }}&format={{ selected_format }}" class="bk-btn">Next →</a>
+    <a href="?page={{ page_obj.next_page_number }}&q={{ query }}&format={{ selected_format }}&sort={{ selected_sort }}" class="bk-btn">Next →</a>
     {% endif %}
   </nav>
   {% endif %}
