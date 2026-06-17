@@ -243,6 +243,10 @@
     allSnippets.forEach(sn => {
       const li = document.createElement('li');
       li.className = 'bk-snippet-item';
+      li.addEventListener('click', () => {
+        if (sn.position) navigateTo(sn.position, sn.page_number);
+        else navigateTo(undefined, sn.page_number);
+      });
       const titleEl = document.createElement('strong');
       titleEl.textContent = sn.title || 'Snippet';
       const preview = document.createElement('p');
@@ -251,7 +255,8 @@
       const copyBtn = document.createElement('button');
       copyBtn.className = 'bk-btn bk-btn-sm';
       copyBtn.textContent = 'Copy';
-      copyBtn.addEventListener('click', () => {
+      copyBtn.addEventListener('click', e => {
+        e.stopPropagation();
         navigator.clipboard.writeText(sn.text).then(() => {
           copyBtn.textContent = 'Copied!';
           setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
