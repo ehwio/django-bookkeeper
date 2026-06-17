@@ -121,6 +121,30 @@
     el('btn-settings').classList.toggle('active', !panel.hidden);
   });
 
+  // ── Fullscreen toggle ────────────────────────────────────────
+  const btnFullscreen = el('btn-fullscreen');
+  const iconEnter = el('icon-fullscreen-enter');
+  const iconExit  = el('icon-fullscreen-exit');
+
+  function syncFullscreenIcons() {
+    const isFS = !!document.fullscreenElement;
+    iconEnter.hidden = isFS;
+    iconExit.hidden  = !isFS;
+    btnFullscreen.classList.toggle('active', isFS);
+  }
+
+  btnFullscreen.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch (_) { /* embedded contexts may reject */ }
+  });
+
+  document.addEventListener('fullscreenchange', syncFullscreenIcons);
+
+  // Sync icon state on load in case page opened already in fullscreen
+  syncFullscreenIcons();
+
   el('font-decrease').addEventListener('click', async () => {
     settings.fontSize = Math.max(10, settings.fontSize - 2);
     applyFontSettings();
