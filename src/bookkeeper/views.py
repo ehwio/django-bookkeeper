@@ -24,6 +24,7 @@ from .models import (
     Highlight,
     ReaderSettings,
     ReadingProgress,
+    Snippet,
     UserBook,
 )
 from .readers import ReaderError, get_reader
@@ -80,6 +81,7 @@ class BookDetailView(LoginRequiredMixin, DetailView):
         ctx["progress"] = ReadingProgress.objects.filter(user=user, book=book).first()
         ctx["bookmarks"] = Bookmark.objects.filter(user=user, book=book)
         ctx["highlights"] = Highlight.objects.filter(user=user, book=book)
+        ctx["snippets"] = Snippet.objects.filter(user=user, book=book)
         return ctx
 
 
@@ -261,6 +263,11 @@ def reader_view(request, slug):
                     "id", "title", "position", "page_number", "note"
                 )
             )),
+            "snippets_json": json.dumps(list(
+                Snippet.objects.filter(user=request.user, book=book).values(
+                    "id", "title", "text", "note", "page_number", "position", "created_at"
+                )
+            ), default=str),
         },
     )
 
@@ -352,6 +359,34 @@ def api_bookmark_create(request, slug):
     )
     hooks.bookmark_created.send(sender=Bookmark, user=request.user, book=book, bookmark=bookmark)
     return JsonResponse({"ok": True, "id": bookmark.pk})
+
+
+@login_required
+@require_POST
+def api_snippet_create(request, slug):
+    book = get_object_or_404(Book, slug=slug)
+    data = json.loads(request.body)
+    snippet = Snippet.objects.create(
+        user=request.user,
+        book=book,
+        title=data.get("title", ""),
+        text=data["text"],
+        note=data.get("note", ""),
+        page_number=int(data.get("page_number", 1)),
+        position=data.get("position", ""),
+    )
+    hooks.snippet_created.send(
+        sender=Snippet, user=request.user, book=book, snippet=snippet
+    )
+    return JsonResponse({"ok": True, "id": snippet.pk})
+
+
+@login_required
+@require_POST
+def api_snippet_delete(request, slug, pk):
+    snippet = get_object_or_404(Snippet, pk=pk, user=request.user, book__slug=slug)
+    snippet.delete()
+    return JsonResponse({"ok": True})
 
 
 @login_required

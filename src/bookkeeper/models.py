@@ -220,6 +220,29 @@ class Highlight(models.Model):
         return f'"{snippet}" in {self.book}'
 
 
+class Snippet(models.Model):
+    """A named excerpt saved by a user from a book."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="snippets"
+    )
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="snippets")
+
+    title = models.CharField(max_length=300, blank=True)
+    text = models.TextField()
+    note = models.TextField(blank=True)
+    page_number = models.PositiveIntegerField(default=1)
+    position = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["book", "page_number", "created_at"]
+
+    def __str__(self):
+        preview = self.text[:50] + ("…" if len(self.text) > 50 else "")
+        return f'"{preview}" in {self.book}'
+
+
 class ReaderSettings(models.Model):
     """Per-user reader preferences."""
 

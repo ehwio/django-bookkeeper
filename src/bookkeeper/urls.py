@@ -36,6 +36,16 @@ urlpatterns = [
         views.api_bookmark_delete,
         name="api_bookmark_delete",
     ),
+    path(
+        "api/book/<slug:slug>/snippet/",
+        views.api_snippet_create,
+        name="api_snippet_create",
+    ),
+    path(
+        "api/book/<slug:slug>/snippet/<int:pk>/delete/",
+        views.api_snippet_delete,
+        name="api_snippet_delete",
+    ),
     path("api/reader-settings/", views.api_reader_settings, name="api_reader_settings"),
     path("api/book/<slug:slug>/chapter/<int:index>/", views.api_chapter, name="api_chapter"),
     # Chapter eval — feature/epub-extraction only

@@ -15,6 +15,7 @@
   const URL_CHAPTER  = reader.dataset.urlChapter || '';
   const allHighlights = JSON.parse(reader.dataset.highlights || '[]');
   const allBookmarks  = JSON.parse(reader.dataset.bookmarks  || '[]');
+  const allSnippets   = JSON.parse(reader.dataset.snippets   || '[]');
   let settings = JSON.parse(reader.dataset.settings || '{}');
 
   // URLs injected by Django template — no hardcoded paths
@@ -23,6 +24,7 @@
   const URL_FINISH         = reader.dataset.urlFinish;
   const URL_HL_CREATE      = reader.dataset.urlHighlightCreate;
   const URL_BM_CREATE      = reader.dataset.urlBookmarkCreate;
+  const URL_SN_CREATE      = reader.dataset.urlSnippetCreate;
   const URL_SETTINGS       = reader.dataset.urlReaderSettings;
 
   const CSRF = () =>
@@ -231,8 +233,38 @@
     });
     panel.appendChild(ul);
   }
+  function populateSidebarSnippets() {
+    const panel = el('tab-snippets');
+    if (!allSnippets.length) {
+      panel.innerHTML = '<p class="bk-muted" style="padding:.5rem">No snippets yet.</p>';
+      return;
+    }
+    const ul = document.createElement('ul');
+    allSnippets.forEach(sn => {
+      const li = document.createElement('li');
+      li.className = 'bk-snippet-item';
+      const titleEl = document.createElement('strong');
+      titleEl.textContent = sn.title || 'Snippet';
+      const preview = document.createElement('p');
+      preview.className = 'bk-muted';
+      preview.textContent = sn.text.length > 80 ? sn.text.slice(0, 80) + '…' : sn.text;
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'bk-btn bk-btn-sm';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(sn.text).then(() => {
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        });
+      });
+      li.append(titleEl, preview, copyBtn);
+      ul.appendChild(li);
+    });
+    panel.appendChild(ul);
+  }
   populateSidebarBookmarks();
   populateSidebarHighlights();
+  populateSidebarSnippets();
 
   // ── Bookmark dialog ───────────────────────────────────────────
   let pendingBookmarkPos = null, pendingBookmarkPage = 1;
@@ -299,6 +331,47 @@
       await apiPost(`${URL_HL_CREATE}${pendingSelection.id}/delete/`);
     }
     hideHighlightMenu();
+  });
+
+  // ── Snippet dialog ────────────────────────────────────────────
+  let pendingSnippetData = null;
+
+  el('hl-snippet').addEventListener('click', () => {
+    if (!pendingSelection) return;
+    pendingSnippetData = { ...pendingSelection };
+    el('sn-preview').textContent = pendingSelection.text || window.getSelection().toString();
+    el('sn-title').value = '';
+    el('sn-note').value  = '';
+    el('snippet-modal').removeAttribute('hidden');
+    el('sn-title').focus();
+    hideHighlightMenu();
+  });
+  el('sn-cancel').addEventListener('click', () => el('snippet-modal').setAttribute('hidden', ''));
+  el('snippet-modal').querySelector('.bk-modal-close').addEventListener('click',
+    () => el('snippet-modal').setAttribute('hidden', ''));
+  el('sn-save').addEventListener('click', async () => {
+    const text = el('sn-preview').textContent;
+    if (!text) return;
+    const result = await apiPost(URL_SN_CREATE, {
+      title: el('sn-title').value.trim(),
+      text,
+      note:        el('sn-note').value.trim(),
+      page_number: pendingSnippetData?.page_number || 1,
+      position:    pendingSnippetData?.start_position || '',
+    });
+    if (result.ok) {
+      allSnippets.push({
+        id: result.id,
+        title: el('sn-title').value.trim(),
+        text,
+        note: el('sn-note').value.trim(),
+        page_number: pendingSnippetData?.page_number || 1,
+      });
+      el('tab-snippets').innerHTML = '';
+      populateSidebarSnippets();
+    }
+    el('snippet-modal').setAttribute('hidden', '');
+    pendingSnippetData = null;
   });
 
   // ── Shared stubs (overridden per-format) ─────────────────────
