@@ -97,14 +97,16 @@
   }
 
   btnFullscreen.addEventListener('click', async () => {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    } else {
-      await document.documentElement.requestFullscreen();
-    }
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch (_) { /* embedded contexts may reject */ }
   });
 
   document.addEventListener('fullscreenchange', syncFullscreenIcons);
+
+  // Sync icon state on load in case page opened already in fullscreen
+  syncFullscreenIcons();
 
   el('font-decrease').addEventListener('click', async () => {
     settings.fontSize = Math.max(10, settings.fontSize - 2);

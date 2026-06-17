@@ -54,7 +54,8 @@ body:has(#bk-reader) .bk-main {
 }
 
 /* In fullscreen the site header is gone so the reader takes the full viewport */
-:fullscreen #bk-reader {
+:fullscreen #bk-reader,
+:-webkit-full-screen #bk-reader {
   height: 100vh;
   background: var(--rd-bg);
 }
