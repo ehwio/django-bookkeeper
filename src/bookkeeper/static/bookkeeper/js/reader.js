@@ -73,8 +73,21 @@
     if (document.visibilityState === 'hidden') flushProgress();
   });
 
-  // Flush before the page unloads — user navigating away or closing tab
-  window.addEventListener('beforeunload', () => flushProgress());
+  // Flush before the page unloads using sendBeacon (guaranteed delivery).
+  // fetch/async-await doesn't work here — the browser cancels in-flight
+  // requests on unload. sendBeacon handles this by serving from the
+  // network layer. We still include the CSRF token as a query param since
+  // sendBeacon can't set custom headers. The view is @csrf_exempt so the
+  // token bypasses the CSRF check.
+  window.addEventListener('beforeunload', () => {
+    if (!pendingProgress) return;
+    const { position, page, pct } = pendingProgress;
+    const body = JSON.stringify({
+      position, page_number: page, percentage: parseFloat(pct.toFixed(1)),
+    });
+    const url = URL_PROGRESS + '?csrfmiddlewaretoken=' + CSRF();
+    navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+  });
 
   // ── Reader settings ───────────────────────────────────────────
   function applyTheme(theme) {

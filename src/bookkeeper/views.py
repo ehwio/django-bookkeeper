@@ -10,6 +10,7 @@ from django.core.files.base import ContentFile
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils.text import slugify
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.generic import DetailView, ListView
 
@@ -269,6 +270,7 @@ def reader_view(request, slug):
 # ---------------------------------------------------------------------------
 
 
+@csrf_exempt
 @login_required
 @require_POST
 def api_progress(request, slug):
