@@ -39,9 +39,15 @@
 
   // ── Progress tracking ─────────────────────────────────────────
   let progressTimer;
-  function saveProgress(position, page, pct) {
+  let pendingProgress = null;
+
+  // Flush any pending save immediately (used by beforeunload/visibilitychange)
+  async function flushProgress() {
+    if (!pendingProgress) return;
+    const { position, page, pct } = pendingProgress;
+    pendingProgress = null;
     clearTimeout(progressTimer);
-    progressTimer = setTimeout(async () => {
+    try {
       await apiPost(URL_PROGRESS, {
         position, page_number: page, percentage: parseFloat(pct.toFixed(1)),
       });
@@ -49,8 +55,39 @@
       if (locEl) locEl.textContent = 'p.' + page;
       el('current-pct').textContent  = Math.round(pct);
       el('reader-progress-fill').style.width = pct + '%';
+    } catch (_) {
+      // ignore network errors on unload — nothing we can do
+    }
+  }
+
+  function saveProgress(position, page, pct) {
+    pendingProgress = { position, page, pct };
+    clearTimeout(progressTimer);
+    progressTimer = setTimeout(async () => {
+      await flushProgress();
     }, 1500);
   }
+
+  // Flush on visibility change (user switching tabs or minimizing)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushProgress();
+  });
+
+  // Flush before the page unloads using sendBeacon (guaranteed delivery).
+  // fetch/async-await doesn't work here — the browser cancels in-flight
+  // requests on unload. sendBeacon handles this by serving from the
+  // network layer. We still include the CSRF token as a query param since
+  // sendBeacon can't set custom headers. The view is @csrf_exempt so the
+  // token bypasses the CSRF check.
+  window.addEventListener('beforeunload', () => {
+    if (!pendingProgress) return;
+    const { position, page, pct } = pendingProgress;
+    const body = JSON.stringify({
+      position, page_number: page, percentage: parseFloat(pct.toFixed(1)),
+    });
+    const url = URL_PROGRESS + '?csrfmiddlewaretoken=' + CSRF();
+    navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+  });
 
   // ── Reader settings ───────────────────────────────────────────
   function applyTheme(theme) {
