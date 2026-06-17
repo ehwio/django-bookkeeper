@@ -33,3 +33,6 @@ highlight_created = Signal()  # provides: user, book, highlight
 
 # Fired when a bookmark is created
 bookmark_created = Signal()  # provides: user, book, bookmark
+
+# Fired when a snippet is created
+snippet_created = Signal()  # provides: user, book, snippet
