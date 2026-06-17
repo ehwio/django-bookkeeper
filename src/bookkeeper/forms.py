@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Bookmark, Highlight
+from .models import Book, Bookmark, Highlight
 
 
 class BookUploadForm(forms.Form):
@@ -32,3 +32,19 @@ class BookmarkForm(forms.ModelForm):
     class Meta:
         model = Bookmark
         fields = ["title", "note"]
+
+
+class BookMetadataForm(forms.ModelForm):
+    """Allows editing book metadata fields that users can reasonably change."""
+
+    class Meta:
+        model = Book
+        fields = [
+            "title",
+            "author",
+            "description",
+            "publisher",
+            "published_date",
+            "isbn",
+            "language",
+        ]

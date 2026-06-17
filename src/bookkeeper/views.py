@@ -9,13 +9,14 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.base import ContentFile
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.generic import DetailView, ListView
 
 from . import hooks
-from .forms import BookUploadForm
+from .forms import BookMetadataForm, BookUploadForm
 from .models import (
     Book,
     BookFormat,
@@ -83,6 +84,31 @@ class BookDetailView(LoginRequiredMixin, DetailView):
         ctx["highlights"] = Highlight.objects.filter(user=user, book=book)
         ctx["snippets"] = Snippet.objects.filter(user=user, book=book)
         return ctx
+
+
+class BookEditView(LoginRequiredMixin, DetailView):
+    """Render the metadata edit form for a book."""
+
+    model = Book
+    template_name = "bookkeeper/book_edit.html"
+    context_object_name = "book"
+
+
+@login_required
+def book_edit(request, slug):
+    """Handle metadata form submission for a book."""
+    book = get_object_or_404(Book, slug=slug)
+    if request.method == "POST":
+        form = BookMetadataForm(request.POST, instance=book)
+        if form.is_valid():
+            form.save()
+            return render(
+                request, "bookkeeper/book_edit.html",
+                {"book": book, "form": form, "saved": True}
+            )
+    else:
+        form = BookMetadataForm(instance=book)
+    return render(request, "bookkeeper/book_edit.html", {"book": book, "form": form})
 
 
 # ---------------------------------------------------------------------------
@@ -429,6 +455,16 @@ def api_favorite(request, slug):
     user_book.is_favorite = not user_book.is_favorite
     user_book.save(update_fields=["is_favorite"])
     return JsonResponse({"ok": True, "is_favorite": user_book.is_favorite})
+
+
+@login_required
+@require_POST
+def api_delete(request, slug):
+    """Remove a book from the current user's library (deletes the UserBook row)."""
+    book = get_object_or_404(Book, slug=slug)
+    user_book = get_object_or_404(UserBook, user=request.user, book=book)
+    user_book.delete()
+    return JsonResponse({"ok": True, "redirect": reverse("bookkeeper:library")})
 
 
 @login_required

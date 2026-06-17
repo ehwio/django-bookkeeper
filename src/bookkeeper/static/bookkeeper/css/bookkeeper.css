@@ -118,6 +118,29 @@ body {
 }
 .bk-field { margin-bottom: 1rem; }
 .bk-field label { display: block; font-size: .875rem; font-weight: 500; margin-bottom: .35rem; }
+.bk-textarea {
+  width: 100%;
+  padding: .5rem .75rem;
+  border: 1px solid var(--bk-border);
+  border-radius: var(--bk-radius-sm);
+  font-size: .9rem;
+  font-family: inherit;
+  background: var(--bk-surface);
+  color: var(--bk-text);
+  resize: vertical;
+  transition: border-color .15s;
+}
+.bk-textarea:focus { outline: none; border-color: var(--bk-accent); box-shadow: 0 0 0 3px var(--bk-accent-lt); }
+
+/* ── Book edit ───────────────────────────────────────────────── */
+.bk-book-edit { max-width: 600px; margin: 0 auto; padding: 1.5rem; }
+.bk-edit-header { margin-bottom: 1.5rem; }
+.bk-edit-header .bk-back-link { color: var(--bk-text-muted); font-size: .875rem; margin-bottom: .5rem; display: inline-block; }
+.bk-edit-header h1 { font-size: 1.4rem; font-weight: 700; }
+.bk-edit-form { background: var(--bk-surface); border: 1px solid var(--bk-border); border-radius: var(--bk-radius); padding: 1.5rem; }
+.bk-edit-actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.5rem; }
+.bk-alert { padding: .75rem 1rem; border-radius: var(--bk-radius-sm); font-size: .875rem; margin-bottom: 1rem; }
+.bk-alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
 
 /* ── Utility ─────────────────────────────────────────────────── */
 .bk-muted { color: var(--bk-text-muted); font-size: .8125rem; }
