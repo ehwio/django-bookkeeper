@@ -42,11 +42,23 @@ class LibraryView(LoginRequiredMixin, ListView):
     context_object_name = "user_books"
     paginate_by = 24
 
+    SORT_OPTIONS = {
+        "recent":        ("-date_last_read", "-date_added"),
+        "added":         ("-date_added",),
+        "title_asc":     ("book__title",),
+        "title_desc":    ("-book__title",),
+        "author_asc":    ("book__author",),
+        "author_desc":   ("-book__author",),
+        "rating_desc":   ("-rating",),
+    }
+
     def get_queryset(self):
+        sort = self.request.GET.get("sort", "recent")
+        order = self.SORT_OPTIONS.get(sort, self.SORT_OPTIONS["recent"])
         qs = (
             UserBook.objects.filter(user=self.request.user)
             .select_related("book")
-            .order_by("-date_last_read", "-date_added")
+            .order_by(*order)
         )
         q = self.request.GET.get("q", "").strip()
         if q:
@@ -66,6 +78,16 @@ class LibraryView(LoginRequiredMixin, ListView):
         ctx["formats"] = BookFormat.choices
         ctx["query"] = self.request.GET.get("q", "")
         ctx["selected_format"] = self.request.GET.get("format", "")
+        ctx["selected_sort"] = self.request.GET.get("sort", "recent")
+        ctx["sort_options"] = [
+            ("recent",      "Recently read"),
+            ("added",       "Recently added"),
+            ("title_asc",   "Title A→Z"),
+            ("title_desc",  "Title Z→A"),
+            ("author_asc",  "Author A→Z"),
+            ("author_desc", "Author Z→A"),
+            ("rating_desc", "Highest rated"),
+        ]
         ctx["upload_form"] = BookUploadForm()
         return ctx
 
