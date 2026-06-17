@@ -6,9 +6,9 @@ import re
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.http import HttpResponse, JsonResponse
-from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.text import slugify
@@ -102,7 +102,8 @@ def book_edit(request, slug):
     else:
         saved = request.GET.get("saved") == "1"
         form = BookMetadataForm(instance=book)
-    return render(request, "bookkeeper/book_edit.html", {"book": book, "form": form, "saved": saved})
+    ctx = {"book": book, "form": form, "saved": saved}
+    return render(request, "bookkeeper/book_edit.html", ctx)
 
 
 # ---------------------------------------------------------------------------
