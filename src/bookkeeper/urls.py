@@ -8,12 +8,16 @@ urlpatterns = [
     path("", views.LibraryView.as_view(), name="library"),
     path("upload/", views.upload_book, name="upload"),
     path("book/<slug:slug>/", views.BookDetailView.as_view(), name="book_detail"),
+    path("book/<slug:slug>/edit/", views.book_edit, name="book_edit"),
     path("book/<slug:slug>/read/", views.reader_view, name="reader"),
     # API
     path("api/book/<slug:slug>/progress/", views.api_progress, name="api_progress"),
     path("api/book/<slug:slug>/rate/", views.api_rate, name="api_rate"),
     path("api/book/<slug:slug>/finish/", views.api_finish, name="api_finish"),
     path("api/book/<slug:slug>/favorite/", views.api_favorite, name="api_favorite"),
+    path("api/book/<slug:slug>/delete/", views.api_delete, name="api_delete"),
+    path("api/book/<slug:slug>/cover/", views.api_cover, name="api_cover"),
+    path("api/book/<slug:slug>/page/<int:index>/", views.api_comic_page, name="api_comic_page"),
     path(
         "api/book/<slug:slug>/highlight/",
         views.api_highlight_create,
@@ -33,6 +37,16 @@ urlpatterns = [
         "api/book/<slug:slug>/bookmark/<int:pk>/delete/",
         views.api_bookmark_delete,
         name="api_bookmark_delete",
+    ),
+    path(
+        "api/book/<slug:slug>/snippet/",
+        views.api_snippet_create,
+        name="api_snippet_create",
+    ),
+    path(
+        "api/book/<slug:slug>/snippet/<int:pk>/delete/",
+        views.api_snippet_delete,
+        name="api_snippet_delete",
     ),
     path("api/reader-settings/", views.api_reader_settings, name="api_reader_settings"),
     path("api/book/<slug:slug>/chapter/<int:index>/", views.api_chapter, name="api_chapter"),

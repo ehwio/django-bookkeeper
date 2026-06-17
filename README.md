@@ -89,10 +89,11 @@ python manage.py migrate
 
 ## Optional dependencies
 
-| Feature | Package |
+| Feature | Package / Requirement |
 |---------|---------|
 | Social login | `django-social-auth-app-django` |
 | Cloud storage | `django-storages` |
+| CBR comic support | system `unrar` or `unar` binary (`rarfile` is included automatically) |
 
 ## Hooks
 
@@ -126,6 +127,9 @@ uv run ruff check src/ tests/
 - `feature/*` — new features
 - `fix/*` — bug fixes
 - `release/*` — release prep
+
+See [RELEASING.md](RELEASING.md) for the step-by-step release process
+(TestPyPI → PyPI via GitHub Actions).
 
 ## License
 

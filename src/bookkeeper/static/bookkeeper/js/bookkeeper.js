@@ -74,9 +74,9 @@ const BK = (() => {
     });
 
     function onFileSelected(file) {
-      const allowed = ['.pdf', '.epub', '.cbz'];
+      const allowed = ['.pdf', '.epub', '.cbz', '.cbr'];
       if (!allowed.some(ext => file.name.toLowerCase().endsWith(ext))) {
-        showError('Only PDF, EPUB, and CBZ files are supported.');
+        showError('Only PDF, EPUB, CBZ, and CBR files are supported.');
         return;
       }
       uploadError.setAttribute('hidden', '');
@@ -120,6 +120,96 @@ const BK = (() => {
     });
   }
 
+  // ── Library drag-drop ─────────────────────────────────────────
+  function initLibraryDrop() {
+    const overlay = document.getElementById('bk-drop-overlay');
+    const toasts  = document.getElementById('bk-upload-toasts');
+    const uploadUrl = document.getElementById('upload-form')?.action;
+    if (!overlay || !toasts || !uploadUrl) return;
+
+    const allowed = ['.pdf', '.epub', '.cbz', '.cbr'];
+    let dragDepth = 0;
+
+    window.addEventListener('dragenter', e => {
+      if (!e.dataTransfer.types.includes('Files')) return;
+      dragDepth++;
+      overlay.removeAttribute('hidden');
+    });
+    window.addEventListener('dragleave', () => {
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) overlay.setAttribute('hidden', '');
+    });
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => {
+      e.preventDefault();
+      overlay.setAttribute('hidden', '');
+      dragDepth = 0;
+
+      const files = [...e.dataTransfer.files].filter(
+        f => allowed.some(ext => f.name.toLowerCase().endsWith(ext))
+      );
+      if (!files.length) return;
+
+      files.forEach(f => uploadFile(f));
+    });
+
+    async function uploadFile(file) {
+      const toast = addToast(file.name, 'Uploading…');
+      const fd = new FormData();
+      fd.append('file', file);
+
+      const csrf = csrfToken();
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', uploadUrl);
+      xhr.setRequestHeader('X-CSRFToken', csrf);
+
+      xhr.upload.onprogress = ev => {
+        if (ev.lengthComputable) {
+          const pct = Math.round(ev.loaded / ev.total * 100);
+          updateToast(toast, `Uploading… ${pct}%`, 'progress');
+        }
+      };
+      xhr.onload = () => {
+        let data;
+        try { data = JSON.parse(xhr.responseText); } catch (_) { data = {}; }
+        if (data.error) {
+          updateToast(toast, data.error, 'error');
+          dismissToast(toast, 6000);
+        } else {
+          updateToast(toast, 'Added!', 'success');
+          dismissToast(toast, 2500);
+          // Refresh the library grid if we're already on the library page
+          if (document.querySelector('.bk-grid')) {
+            setTimeout(() => window.location.reload(), 2600);
+          }
+        }
+      };
+      xhr.onerror = () => {
+        updateToast(toast, 'Upload failed', 'error');
+        dismissToast(toast, 6000);
+      };
+      xhr.send(fd);
+    }
+
+    function addToast(filename, msg) {
+      const el = document.createElement('div');
+      el.className = 'bk-upload-toast';
+      el.innerHTML = `<span class="bk-toast-name">${filename}</span><span class="bk-toast-status">${msg}</span>`;
+      toasts.appendChild(el);
+      return el;
+    }
+    function updateToast(el, msg, state) {
+      el.querySelector('.bk-toast-status').textContent = msg;
+      el.dataset.state = state || '';
+    }
+    function dismissToast(el, delay) {
+      setTimeout(() => {
+        el.classList.add('bk-toast-out');
+        setTimeout(() => el.remove(), 400);
+      }, delay);
+    }
+  }
+
   // ── Star ratings ──────────────────────────────────────────────
   function initStarRatings() {
     document.querySelectorAll('.bk-star-rating').forEach(widget => {
@@ -151,6 +241,7 @@ const BK = (() => {
 
   document.addEventListener('DOMContentLoaded', () => {
     initUpload();
+    initLibraryDrop();
     initStarRatings();
   });
 

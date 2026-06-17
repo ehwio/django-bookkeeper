@@ -15,6 +15,7 @@
   const URL_CHAPTER  = reader.dataset.urlChapter || '';
   const allHighlights = JSON.parse(reader.dataset.highlights || '[]');
   const allBookmarks  = JSON.parse(reader.dataset.bookmarks  || '[]');
+  const allSnippets   = JSON.parse(reader.dataset.snippets   || '[]');
   let settings = JSON.parse(reader.dataset.settings || '{}');
 
   // URLs injected by Django template — no hardcoded paths
@@ -23,6 +24,7 @@
   const URL_FINISH         = reader.dataset.urlFinish;
   const URL_HL_CREATE      = reader.dataset.urlHighlightCreate;
   const URL_BM_CREATE      = reader.dataset.urlBookmarkCreate;
+  const URL_SN_CREATE      = reader.dataset.urlSnippetCreate;
   const URL_SETTINGS       = reader.dataset.urlReaderSettings;
 
   const CSRF = () =>
@@ -39,9 +41,15 @@
 
   // ── Progress tracking ─────────────────────────────────────────
   let progressTimer;
-  function saveProgress(position, page, pct) {
+  let pendingProgress = null;
+
+  // Flush any pending save immediately (used by beforeunload/visibilitychange)
+  async function flushProgress() {
+    if (!pendingProgress) return;
+    const { position, page, pct } = pendingProgress;
+    pendingProgress = null;
     clearTimeout(progressTimer);
-    progressTimer = setTimeout(async () => {
+    try {
       await apiPost(URL_PROGRESS, {
         position, page_number: page, percentage: parseFloat(pct.toFixed(1)),
       });
@@ -49,8 +57,39 @@
       if (locEl) locEl.textContent = 'p.' + page;
       el('current-pct').textContent  = Math.round(pct);
       el('reader-progress-fill').style.width = pct + '%';
+    } catch (_) {
+      // ignore network errors on unload — nothing we can do
+    }
+  }
+
+  function saveProgress(position, page, pct) {
+    pendingProgress = { position, page, pct };
+    clearTimeout(progressTimer);
+    progressTimer = setTimeout(async () => {
+      await flushProgress();
     }, 1500);
   }
+
+  // Flush on visibility change (user switching tabs or minimizing)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushProgress();
+  });
+
+  // Flush before the page unloads using sendBeacon (guaranteed delivery).
+  // fetch/async-await doesn't work here — the browser cancels in-flight
+  // requests on unload. sendBeacon handles this by serving from the
+  // network layer. We still include the CSRF token as a query param since
+  // sendBeacon can't set custom headers. The view is @csrf_exempt so the
+  // token bypasses the CSRF check.
+  window.addEventListener('beforeunload', () => {
+    if (!pendingProgress) return;
+    const { position, page, pct } = pendingProgress;
+    const body = JSON.stringify({
+      position, page_number: page, percentage: parseFloat(pct.toFixed(1)),
+    });
+    const url = URL_PROGRESS + '?csrfmiddlewaretoken=' + CSRF();
+    navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+  });
 
   // ── Reader settings ───────────────────────────────────────────
   function applyTheme(theme) {
@@ -83,6 +122,30 @@
     panel.toggleAttribute('hidden');
     el('btn-settings').classList.toggle('active', !panel.hidden);
   });
+
+  // ── Fullscreen toggle ────────────────────────────────────────
+  const btnFullscreen = el('btn-fullscreen');
+  const iconEnter = el('icon-fullscreen-enter');
+  const iconExit  = el('icon-fullscreen-exit');
+
+  function syncFullscreenIcons() {
+    const isFS = !!document.fullscreenElement;
+    iconEnter.hidden = isFS;
+    iconExit.hidden  = !isFS;
+    btnFullscreen.classList.toggle('active', isFS);
+  }
+
+  btnFullscreen.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch (_) { /* embedded contexts may reject */ }
+  });
+
+  document.addEventListener('fullscreenchange', syncFullscreenIcons);
+
+  // Sync icon state on load in case page opened already in fullscreen
+  syncFullscreenIcons();
 
   el('font-decrease').addEventListener('click', async () => {
     settings.fontSize = Math.max(10, settings.fontSize - 2);
@@ -170,13 +233,50 @@
     });
     panel.appendChild(ul);
   }
+  function populateSidebarSnippets() {
+    const panel = el('tab-snippets');
+    if (!allSnippets.length) {
+      panel.innerHTML = '<p class="bk-muted" style="padding:.5rem">No snippets yet.</p>';
+      return;
+    }
+    const ul = document.createElement('ul');
+    allSnippets.forEach(sn => {
+      const li = document.createElement('li');
+      li.className = 'bk-snippet-item';
+      li.addEventListener('click', () => {
+        if (sn.position) navigateTo(sn.position, sn.page_number);
+        else navigateTo(undefined, sn.page_number);
+      });
+      const titleEl = document.createElement('strong');
+      titleEl.textContent = sn.title || 'Snippet';
+      const preview = document.createElement('p');
+      preview.className = 'bk-muted';
+      preview.textContent = sn.text.length > 80 ? sn.text.slice(0, 80) + '…' : sn.text;
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'bk-btn bk-btn-sm';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(sn.text).then(() => {
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        });
+      });
+      li.append(titleEl, preview, copyBtn);
+      ul.appendChild(li);
+    });
+    panel.appendChild(ul);
+  }
   populateSidebarBookmarks();
   populateSidebarHighlights();
+  populateSidebarSnippets();
 
   // ── Bookmark dialog ───────────────────────────────────────────
   let pendingBookmarkPos = null, pendingBookmarkPage = 1;
 
   el('btn-bookmark').addEventListener('click', () => {
+    // Capture position live at click time rather than relying on the last scroll event
+    pendingBookmarkPos  = getCurrentPos();
     el('bookmark-modal').removeAttribute('hidden');
     el('bm-title').focus();
   });
@@ -210,7 +310,7 @@
     pendingSelection = null;
   }
 
-  document.addEventListener('click', e => {
+  document.addEventListener('mousedown', e => {
     if (!hlMenu.contains(e.target)) hideHighlightMenu();
   });
 
@@ -240,10 +340,53 @@
     hideHighlightMenu();
   });
 
+  // ── Snippet dialog ────────────────────────────────────────────
+  let pendingSnippetData = null;
+
+  el('hl-snippet').addEventListener('click', () => {
+    if (!pendingSelection) return;
+    pendingSnippetData = { ...pendingSelection };
+    el('sn-preview').textContent = pendingSelection.text || window.getSelection().toString();
+    el('sn-title').value = '';
+    el('sn-note').value  = '';
+    el('snippet-modal').removeAttribute('hidden');
+    el('sn-title').focus();
+    hideHighlightMenu();
+  });
+  el('sn-cancel').addEventListener('click', () => el('snippet-modal').setAttribute('hidden', ''));
+  el('snippet-modal').querySelector('.bk-modal-close').addEventListener('click',
+    () => el('snippet-modal').setAttribute('hidden', ''));
+  el('sn-save').addEventListener('click', async () => {
+    const text = el('sn-preview').textContent;
+    if (!text) return;
+    const result = await apiPost(URL_SN_CREATE, {
+      title: el('sn-title').value.trim(),
+      text,
+      note:        el('sn-note').value.trim(),
+      page_number: pendingSnippetData?.page_number || 1,
+      position:    pendingSnippetData?.start_position || '',
+    });
+    if (result.ok) {
+      allSnippets.push({
+        id: result.id,
+        title: el('sn-title').value.trim(),
+        text,
+        note: el('sn-note').value.trim(),
+        page_number: pendingSnippetData?.page_number || 1,
+      });
+      el('tab-snippets').innerHTML = '';
+      populateSidebarSnippets();
+    }
+    el('snippet-modal').setAttribute('hidden', '');
+    pendingSnippetData = null;
+  });
+
   // ── Shared stubs (overridden per-format) ─────────────────────
   let navigateTo = () => {};
   let updateContentStyles = () => {};
   let applyHighlight = () => {};
+  // Returns the live position string at the moment of calling (for bookmarks)
+  let getCurrentPos = () => pendingBookmarkPos || '';
 
   function hideLoading() { el('reader-loading').style.display = 'none'; }
 
@@ -254,6 +397,7 @@
     else if (format === 'epub')           await loadEpub();
     else if (format === 'pdf')            await loadPdf();
     else if (format === 'cbz')            await loadCbz();
+    else if (format === 'cbr')            await loadCbr();
     else {
       el('reader-loading').innerHTML =
         `<p style="color:var(--rd-muted)">Unknown format: ${format}</p>`;
@@ -393,6 +537,7 @@
     nextBtn.addEventListener('click', () => rendition.next());
 
     navigateTo = (cfi) => rendition.display(cfi);
+    getCurrentPos = () => pendingBookmarkPos || '';
 
     document.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -436,6 +581,11 @@
              min="1" max="${totalPages}" value="${currentPage}">
       <span style="font-size:.8rem;color:var(--rd-muted)">/ ${totalPages}</span>
       <button id="pdf-next" title="Next page">&#8594;</button>
+      <span class="bk-nav-sep"></span>
+      <button id="pdf-zoom-out" title="Zoom out">&#8722;</button>
+      <span id="pdf-zoom-label" class="bk-zoom-label">100%</span>
+      <button id="pdf-zoom-in" title="Zoom in">&#43;</button>
+      <button id="pdf-zoom-reset" title="Reset zoom" class="bk-zoom-reset">&#8634;</button>
     `;
     viewer.appendChild(nav);
 
@@ -443,24 +593,61 @@
     canvas.className = 'bk-pdf-page';
     viewer.insertBefore(canvas, nav);
 
+    let pdfZoom = 1.0;
+    const ZOOM_STEP = 0.25;
+    const ZOOM_MIN  = 0.5;
+    const ZOOM_MAX  = 4.0;
+
+    function fitScale() {
+      // Available width minus viewer padding (1.5rem each side ≈ 48px)
+      const available = viewer.clientWidth - 48;
+      return available > 0 ? available / 612 : 1; // 612pt = standard US letter width
+    }
+
     async function renderPage(n) {
       currentPage = Math.max(1, Math.min(n, totalPages));
       el('pdf-page-input').value = currentPage;
       el('pdf-prev').disabled = currentPage <= 1;
       el('pdf-next').disabled = currentPage >= totalPages;
       const page = await pdf.getPage(currentPage);
-      const vp   = page.getViewport({ scale: 1.5 });
+      const dpr  = window.devicePixelRatio || 1;
+      const scale = fitScale() * pdfZoom * dpr;
+      const vp   = page.getViewport({ scale });
       canvas.width  = vp.width;
       canvas.height = vp.height;
+      canvas.style.width  = (vp.width  / dpr) + 'px';
+      canvas.style.height = (vp.height / dpr) + 'px';
       await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
       pendingBookmarkPos  = String(currentPage);
       pendingBookmarkPage = currentPage;
       saveProgress(String(currentPage), currentPage, (currentPage / totalPages) * 100);
     }
 
+    function updateZoomLabel() {
+      el('pdf-zoom-label').textContent = Math.round(pdfZoom * 100) + '%';
+    }
+
     el('pdf-prev').addEventListener('click', () => renderPage(currentPage - 1));
     el('pdf-next').addEventListener('click', () => renderPage(currentPage + 1));
     el('pdf-page-input').addEventListener('change', e => renderPage(parseInt(e.target.value)));
+    el('pdf-zoom-in').addEventListener('click', () => {
+      pdfZoom = Math.min(ZOOM_MAX, pdfZoom + ZOOM_STEP);
+      updateZoomLabel();
+      renderPage(currentPage);
+    });
+    el('pdf-zoom-out').addEventListener('click', () => {
+      pdfZoom = Math.max(ZOOM_MIN, pdfZoom - ZOOM_STEP);
+      updateZoomLabel();
+      renderPage(currentPage);
+    });
+    el('pdf-zoom-reset').addEventListener('click', () => {
+      pdfZoom = 1.0;
+      updateZoomLabel();
+      renderPage(currentPage);
+    });
+
+    const pdfResizeObs = new ResizeObserver(() => renderPage(currentPage));
+    pdfResizeObs.observe(viewer);
 
     document.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -491,6 +678,7 @@
     });
 
     navigateTo = (_, page) => renderPage(page);
+    getCurrentPos = () => `${currentPage}`;
     updateContentStyles = () => {};
     await renderPage(currentPage);
     hideLoading();
@@ -518,18 +706,33 @@
     let current = Math.min(initPage - 1, total - 1);
 
     const img = document.createElement('img');
-    img.className = 'bk-cbz-page';
+    img.className = 'bk-comic-page';
     img.alt = 'Comic page';
     viewer.appendChild(img);
 
-    const prev = document.createElement('div');
-    prev.className = 'bk-cbz-nav bk-cbz-nav-prev';
-    prev.innerHTML = '<span>&#8592;</span>';
-    const next = document.createElement('div');
-    next.className = 'bk-cbz-nav bk-cbz-nav-next';
-    next.innerHTML = '<span>&#8594;</span>';
-    viewer.appendChild(prev);
-    viewer.appendChild(next);
+    const nav = document.createElement('div');
+    nav.className = 'bk-pdf-nav';
+    nav.innerHTML = `
+      <button id="cbz-prev" title="Previous page">&#8592;</button>
+      <span id="cbz-page-label" class="bk-zoom-label" style="min-width:4rem;text-align:center">1 / ${total}</span>
+      <button id="cbz-next" title="Next page">&#8594;</button>
+      <span class="bk-nav-sep"></span>
+      <button id="cbz-zoom-out" title="Zoom out">&#8722;</button>
+      <span id="cbz-zoom-label" class="bk-zoom-label">100%</span>
+      <button id="cbz-zoom-in" title="Zoom in">&#43;</button>
+      <button id="cbz-zoom-reset" title="Reset zoom" class="bk-zoom-reset">&#8634;</button>
+    `;
+    viewer.appendChild(nav);
+
+    let cbzZoom = 1.0;
+    const ZOOM_STEP = 0.25;
+    const ZOOM_MIN  = 0.25;
+    const ZOOM_MAX  = 4.0;
+
+    function applyZoom() {
+      img.style.width = (cbzZoom * 100) + '%';
+      el('cbz-zoom-label').textContent = Math.round(cbzZoom * 100) + '%';
+    }
 
     let blobUrl = null;
     async function showPage(n) {
@@ -538,25 +741,33 @@
       const data = await zip.files[pages[current]].async('blob');
       blobUrl = URL.createObjectURL(data);
       img.src = blobUrl;
+      viewer.scrollTop = 0;
+      el('cbz-page-label').textContent = `${current + 1} / ${total}`;
       const pageNum = current + 1;
       pendingBookmarkPos  = String(pageNum);
       pendingBookmarkPage = pageNum;
       saveProgress(String(pageNum), pageNum, (pageNum / total) * 100);
     }
 
-    prev.addEventListener('click', () => showPage(current - 1));
-    next.addEventListener('click', () => showPage(current + 1));
-    viewer.addEventListener('click', e => {
-      if (e.target === prev || prev.contains(e.target)) return;
-      if (e.target === next || next.contains(e.target)) return;
-      const x = e.clientX / window.innerWidth;
-      if (x < 0.35) showPage(current - 1);
-      else if (x > 0.65) showPage(current + 1);
+    el('cbz-prev').addEventListener('click', () => showPage(current - 1));
+    el('cbz-next').addEventListener('click', () => showPage(current + 1));
+    el('cbz-zoom-in').addEventListener('click', () => {
+      cbzZoom = Math.min(ZOOM_MAX, cbzZoom + ZOOM_STEP);
+      applyZoom();
     });
+    el('cbz-zoom-out').addEventListener('click', () => {
+      cbzZoom = Math.max(ZOOM_MIN, cbzZoom - ZOOM_STEP);
+      applyZoom();
+    });
+    el('cbz-zoom-reset').addEventListener('click', () => {
+      cbzZoom = 1.0;
+      applyZoom();
+    });
+
     document.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') showPage(current + 1);
-      if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   showPage(current - 1);
+      if (e.key === 'ArrowRight') showPage(current + 1);
+      if (e.key === 'ArrowLeft')  showPage(current - 1);
     });
 
     const ul = document.createElement('ul');
@@ -569,7 +780,120 @@
     el('tab-toc').appendChild(ul);
 
     navigateTo = (_, page) => showPage(page - 1);
+    getCurrentPos = () => `${current + 1}`;
     updateContentStyles = () => {};
+    applyZoom();
+    await showPage(current);
+    hideLoading();
+  }
+
+  // ==============================================================
+  // CBR — pages served one-at-a-time via api_comic_page
+  // ==============================================================
+  async function loadCbr() {
+    const viewer = el('cbr-viewer');
+    viewer.removeAttribute('hidden');
+
+    const urlTemplate = reader.dataset.urlComicPage;
+    if (!urlTemplate) {
+      viewer.innerHTML = '<p style="padding:2rem;color:var(--rd-muted)">CBR page URL not configured.</p>';
+      hideLoading();
+      return;
+    }
+
+    // Fetch page count from the first page response headers isn't viable, so
+    // we rely on page_count stored on the book (passed via progress percentage
+    // being 0 initially and totalPages from the API). Instead fetch page 0
+    // to confirm access and get total from the X-Page-Count header.
+    const pageUrl = i => urlTemplate.replace(/\/0\//, `/${i}/`);
+
+    // Probe page 0 to get total page count
+    const probe = await fetch(pageUrl(0));
+    if (!probe.ok) {
+      viewer.innerHTML = '<p style="padding:2rem;color:var(--rd-muted)">Failed to load CBR.</p>';
+      hideLoading();
+      return;
+    }
+    const total = parseInt(probe.headers.get('X-Page-Count') || '0', 10) || null;
+    let current = Math.min(initPage - 1, total ? total - 1 : 0);
+
+    const img = document.createElement('img');
+    img.className = 'bk-comic-page';
+    img.alt = 'Comic page';
+    viewer.appendChild(img);
+
+    const totalLabel = total ? ` / ${total}` : '';
+    const nav = document.createElement('div');
+    nav.className = 'bk-pdf-nav';
+    nav.innerHTML = `
+      <button id="cbr-prev" title="Previous page">&#8592;</button>
+      <span id="cbr-page-label" class="bk-zoom-label" style="min-width:4rem;text-align:center">1${totalLabel}</span>
+      <button id="cbr-next" title="Next page">&#8594;</button>
+      <span class="bk-nav-sep"></span>
+      <button id="cbr-zoom-out" title="Zoom out">&#8722;</button>
+      <span id="cbr-zoom-label" class="bk-zoom-label">100%</span>
+      <button id="cbr-zoom-in" title="Zoom in">&#43;</button>
+      <button id="cbr-zoom-reset" title="Reset zoom" class="bk-zoom-reset">&#8634;</button>
+    `;
+    viewer.appendChild(nav);
+
+    let cbrZoom = 1.0;
+    const ZOOM_STEP = 0.25;
+    const ZOOM_MIN  = 0.25;
+    const ZOOM_MAX  = 4.0;
+
+    function applyZoom() {
+      img.style.width = (cbrZoom * 100) + '%';
+      el('cbr-zoom-label').textContent = Math.round(cbrZoom * 100) + '%';
+    }
+
+    async function showPage(n) {
+      current = Math.max(0, total ? Math.min(n, total - 1) : n);
+      img.src = pageUrl(current);
+      viewer.scrollTop = 0;
+      el('cbr-page-label').textContent = `${current + 1}${totalLabel}`;
+      const pageNum = current + 1;
+      pendingBookmarkPos  = String(pageNum);
+      pendingBookmarkPage = pageNum;
+      saveProgress(String(pageNum), pageNum, total ? (pageNum / total) * 100 : 0);
+    }
+
+    el('cbr-prev').addEventListener('click', () => showPage(current - 1));
+    el('cbr-next').addEventListener('click', () => showPage(current + 1));
+    el('cbr-zoom-in').addEventListener('click', () => {
+      cbrZoom = Math.min(ZOOM_MAX, cbrZoom + ZOOM_STEP);
+      applyZoom();
+    });
+    el('cbr-zoom-out').addEventListener('click', () => {
+      cbrZoom = Math.max(ZOOM_MIN, cbrZoom - ZOOM_STEP);
+      applyZoom();
+    });
+    el('cbr-zoom-reset').addEventListener('click', () => {
+      cbrZoom = 1.0;
+      applyZoom();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight') showPage(current + 1);
+      if (e.key === 'ArrowLeft')  showPage(current - 1);
+    });
+
+    if (total) {
+      const ul = document.createElement('ul');
+      for (let i = 0; i < total; i++) {
+        const li = document.createElement('li');
+        li.textContent = `Page ${i + 1}`;
+        li.addEventListener('click', () => showPage(i));
+        ul.appendChild(li);
+      }
+      el('tab-toc').appendChild(ul);
+    }
+
+    navigateTo = (_, page) => showPage(page - 1);
+    getCurrentPos = () => `${current + 1}`;
+    updateContentStyles = () => {};
+    applyZoom();
     await showPage(current);
     hideLoading();
   }
@@ -763,6 +1087,7 @@
       const [idx, off] = pos.split(':').map(Number);
       loadChapter(idx, off || 0);
     };
+    getCurrentPos = () => `${currentIndex}:${charOffsetAtScrollTop()}`;
 
     // ── Initial load ──────────────────────────────────────────────
     let initCharOffset = 0;

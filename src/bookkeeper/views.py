@@ -6,15 +6,18 @@ import re
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.text import slugify
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.generic import DetailView, ListView
 
 from . import hooks
-from .forms import BookUploadForm
+from .forms import BookMetadataForm, BookUploadForm
 from .models import (
     Book,
     BookFormat,
@@ -23,6 +26,7 @@ from .models import (
     Highlight,
     ReaderSettings,
     ReadingProgress,
+    Snippet,
     UserBook,
 )
 from .readers import ReaderError, get_reader
@@ -38,11 +42,23 @@ class LibraryView(LoginRequiredMixin, ListView):
     context_object_name = "user_books"
     paginate_by = 24
 
+    SORT_OPTIONS = {
+        "recent":        ("-date_last_read", "-date_added"),
+        "added":         ("-date_added",),
+        "title_asc":     ("book__title",),
+        "title_desc":    ("-book__title",),
+        "author_asc":    ("book__author",),
+        "author_desc":   ("-book__author",),
+        "rating_desc":   ("-rating",),
+    }
+
     def get_queryset(self):
+        sort = self.request.GET.get("sort", "recent")
+        order = self.SORT_OPTIONS.get(sort, self.SORT_OPTIONS["recent"])
         qs = (
             UserBook.objects.filter(user=self.request.user)
             .select_related("book")
-            .order_by("-date_last_read", "-date_added")
+            .order_by(*order)
         )
         q = self.request.GET.get("q", "").strip()
         if q:
@@ -62,6 +78,16 @@ class LibraryView(LoginRequiredMixin, ListView):
         ctx["formats"] = BookFormat.choices
         ctx["query"] = self.request.GET.get("q", "")
         ctx["selected_format"] = self.request.GET.get("format", "")
+        ctx["selected_sort"] = self.request.GET.get("sort", "recent")
+        ctx["sort_options"] = [
+            ("recent",      "Recently read"),
+            ("added",       "Recently added"),
+            ("title_asc",   "Title A→Z"),
+            ("title_desc",  "Title Z→A"),
+            ("author_asc",  "Author A→Z"),
+            ("author_desc", "Author Z→A"),
+            ("rating_desc", "Highest rated"),
+        ]
         ctx["upload_form"] = BookUploadForm()
         return ctx
 
@@ -79,7 +105,27 @@ class BookDetailView(LoginRequiredMixin, DetailView):
         ctx["progress"] = ReadingProgress.objects.filter(user=user, book=book).first()
         ctx["bookmarks"] = Bookmark.objects.filter(user=user, book=book)
         ctx["highlights"] = Highlight.objects.filter(user=user, book=book)
+        ctx["snippets"] = Snippet.objects.filter(user=user, book=book)
         return ctx
+
+
+@login_required
+def book_edit(request, slug):
+    """Handle metadata form submission for a book."""
+    book = get_object_or_404(Book, slug=slug)
+    if book.added_by != request.user:
+        raise PermissionDenied
+    saved = False
+    if request.method == "POST":
+        form = BookMetadataForm(request.POST, instance=book)
+        if form.is_valid():
+            form.save()
+            return redirect(f"{reverse('bookkeeper:book_edit', args=[slug])}?saved=1")
+    else:
+        saved = request.GET.get("saved") == "1"
+        form = BookMetadataForm(instance=book)
+    ctx = {"book": book, "form": form, "saved": saved}
+    return render(request, "bookkeeper/book_edit.html", ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +204,10 @@ def upload_book(request):
 def _detect_format(file_obj):
     name = getattr(file_obj, "name", "")
     ext = os.path.splitext(name)[1].lower().lstrip(".")
-    mapping = {"pdf": BookFormat.PDF, "epub": BookFormat.EPUB, "cbz": BookFormat.CBZ}
+    mapping = {
+        "pdf": BookFormat.PDF, "epub": BookFormat.EPUB,
+        "cbz": BookFormat.CBZ, "cbr": BookFormat.CBR,
+    }
     return mapping.get(ext)
 
 
@@ -257,6 +306,11 @@ def reader_view(request, slug):
                     "id", "title", "position", "page_number", "note"
                 )
             )),
+            "snippets_json": json.dumps(list(
+                Snippet.objects.filter(user=request.user, book=book).values(
+                    "id", "title", "text", "note", "page_number", "position", "created_at"
+                )
+            ), default=str),
         },
     )
 
@@ -266,6 +320,7 @@ def reader_view(request, slug):
 # ---------------------------------------------------------------------------
 
 
+@csrf_exempt
 @login_required
 @require_POST
 def api_progress(request, slug):
@@ -351,6 +406,34 @@ def api_bookmark_create(request, slug):
 
 @login_required
 @require_POST
+def api_snippet_create(request, slug):
+    book = get_object_or_404(Book, slug=slug)
+    data = json.loads(request.body)
+    snippet = Snippet.objects.create(
+        user=request.user,
+        book=book,
+        title=data.get("title", ""),
+        text=data["text"],
+        note=data.get("note", ""),
+        page_number=int(data.get("page_number", 1)),
+        position=data.get("position", ""),
+    )
+    hooks.snippet_created.send(
+        sender=Snippet, user=request.user, book=book, snippet=snippet
+    )
+    return JsonResponse({"ok": True, "id": snippet.pk})
+
+
+@login_required
+@require_POST
+def api_snippet_delete(request, slug, pk):
+    snippet = get_object_or_404(Snippet, pk=pk, user=request.user, book__slug=slug)
+    snippet.delete()
+    return JsonResponse({"ok": True})
+
+
+@login_required
+@require_POST
 def api_bookmark_delete(request, slug, pk):
     bookmark = get_object_or_404(Bookmark, pk=pk, user=request.user, book__slug=slug)
     bookmark.delete()
@@ -389,6 +472,50 @@ def api_favorite(request, slug):
     user_book.is_favorite = not user_book.is_favorite
     user_book.save(update_fields=["is_favorite"])
     return JsonResponse({"ok": True, "is_favorite": user_book.is_favorite})
+
+
+@login_required
+@require_POST
+def api_delete(request, slug):
+    """Remove a book from the current user's library (deletes the UserBook row)."""
+    book = get_object_or_404(Book, slug=slug)
+    user_book = get_object_or_404(UserBook, user=request.user, book=book)
+    user_book.delete()
+    return JsonResponse({"ok": True, "redirect": reverse("bookkeeper:library")})
+
+
+@login_required
+@require_POST
+def api_cover(request, slug):
+    book = get_object_or_404(Book, slug=slug)
+    user_book, _ = UserBook.objects.get_or_create(user=request.user, book=book)
+    file = request.FILES.get("cover")
+    if not file:
+        return JsonResponse({"ok": False, "error": "No file provided."}, status=400)
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+        return JsonResponse({"ok": False, "error": "Unsupported image type."}, status=400)
+    if user_book.cover_override:
+        user_book.cover_override.delete(save=False)
+    user_book.cover_override.save(file.name, file, save=False)
+    user_book.save(update_fields=["cover_override"])
+    return JsonResponse({"ok": True, "cover_url": user_book.cover_override.url})
+
+
+@login_required
+def api_comic_page(request, slug, index):
+    """Serve a single page image from a CBR (or CBZ) archive by page index."""
+    book = get_object_or_404(Book, slug=slug)
+    reader = get_reader(book.format, book.file)
+    pages = reader._pages
+    if index < 0 or index >= len(pages):
+        return HttpResponse(status=404)
+    name = pages[index]
+    data = reader._read(name) if book.format == BookFormat.CBR else reader._zf.read(name)
+    ext = name.rsplit(".", 1)[-1].lower()
+    content_type = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+    response = HttpResponse(data, content_type=content_type)
+    response["X-Page-Count"] = str(len(pages))
+    return response
 
 
 # ---------------------------------------------------------------------------

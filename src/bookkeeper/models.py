@@ -16,10 +16,16 @@ def cover_upload_path(instance, filename):
     return f"bookkeeper/covers/{instance.slug}{ext}"
 
 
+def user_cover_upload_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    return f"bookkeeper/covers/user_{instance.user_id}/{instance.book.slug}{ext}"
+
+
 class BookFormat(models.TextChoices):
     PDF = "pdf", _("PDF")
     EPUB = "epub", _("EPUB")
     CBZ = "cbz", _("CBZ / Comic Book Archive")
+    CBR = "cbr", _("CBR / Comic Book Archive (RAR)")
 
 
 class Book(models.Model):
@@ -32,6 +38,7 @@ class Book(models.Model):
     publisher = models.CharField(max_length=300, blank=True)
     published_date = models.CharField(max_length=50, blank=True)
     isbn = models.CharField(max_length=20, blank=True, db_index=True)
+    amazon_url = models.URLField(max_length=500, blank=True)
     language = models.CharField(max_length=10, default="en")
 
     format = models.CharField(max_length=10, choices=BookFormat.choices)
@@ -117,6 +124,7 @@ class UserBook(models.Model):
     date_last_read = models.DateTimeField(null=True, blank=True)
     is_favorite = models.BooleanField(default=False)
     is_finished = models.BooleanField(default=False)
+    cover_override = models.ImageField(upload_to=user_cover_upload_path, blank=True, null=True)
 
     class Meta:
         unique_together = ("user", "book")
@@ -124,6 +132,15 @@ class UserBook(models.Model):
 
     def __str__(self):
         return f"{self.user} / {self.book}"
+
+    @property
+    def effective_cover_url(self):
+        """Return per-user override URL if set, otherwise fall back to the book's cover."""
+        if self.cover_override:
+            return self.cover_override.url
+        if self.book.cover:
+            return self.book.cover.url
+        return None
 
 
 class ReadingProgress(models.Model):
@@ -202,6 +219,29 @@ class Highlight(models.Model):
     def __str__(self):
         snippet = self.text[:50] + ("…" if len(self.text) > 50 else "")
         return f'"{snippet}" in {self.book}'
+
+
+class Snippet(models.Model):
+    """A named excerpt saved by a user from a book."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="snippets"
+    )
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="snippets")
+
+    title = models.CharField(max_length=300, blank=True)
+    text = models.TextField()
+    note = models.TextField(blank=True)
+    page_number = models.PositiveIntegerField(default=1)
+    position = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["book", "page_number", "created_at"]
+
+    def __str__(self):
+        preview = self.text[:50] + ("…" if len(self.text) > 50 else "")
+        return f'"{preview}" in {self.book}'
 
 
 class ReaderSettings(models.Model):

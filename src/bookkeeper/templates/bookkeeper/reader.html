@@ -16,6 +16,7 @@
      data-page="{{ progress.page_number|default:1 }}"
      data-highlights="{{ highlights_json }}"
      data-bookmarks="{{ bookmarks_json }}"
+     data-snippets="{{ snippets_json }}"
      data-settings='{"fontSize":{{ reader_settings.font_size }},"fontFamily":"{{ reader_settings.font_family }}","lineHeight":{{ reader_settings.line_height }},"theme":"{{ reader_settings.theme }}","columnWidth":"{{ reader_settings.column_width }}"}'
      data-has-chapters="{{ has_chapters|yesno:'true,false' }}"
      data-chapter-count="{{ chapter_count }}"
@@ -26,7 +27,9 @@
      data-url-finish="{% url 'bookkeeper:api_finish' book.slug %}"
      data-url-highlight-create="{% url 'bookkeeper:api_highlight_create' book.slug %}"
      data-url-bookmark-create="{% url 'bookkeeper:api_bookmark_create' book.slug %}"
-     data-url-reader-settings="{% url 'bookkeeper:api_reader_settings' %}">
+     data-url-snippet-create="{% url 'bookkeeper:api_snippet_create' book.slug %}"
+     data-url-reader-settings="{% url 'bookkeeper:api_reader_settings' %}"
+     {% if book.format == 'cbr' %}data-url-comic-page="{% url 'bookkeeper:api_comic_page' book.slug 0 %}"{% endif %}>
 
   <!-- Top toolbar -->
   <header class="bk-reader-header">
@@ -63,6 +66,14 @@
           <line x1="3" y1="18" x2="3.01" y2="18"/>
         </svg>
       </button>
+      <button class="bk-reader-btn" id="btn-fullscreen" title="Toggle full-screen">
+        <svg id="icon-fullscreen-enter" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+        </svg>
+        <svg id="icon-fullscreen-exit" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" hidden>
+          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+        </svg>
+      </button>
       <button class="bk-reader-btn" id="btn-settings" title="Reader settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"/>
@@ -86,10 +97,12 @@
         <button class="bk-sidebar-tab active" data-tab="toc">Contents</button>
         <button class="bk-sidebar-tab" data-tab="bookmarks">Bookmarks</button>
         <button class="bk-sidebar-tab" data-tab="highlights">Highlights</button>
+        <button class="bk-sidebar-tab" data-tab="snippets">Snippets</button>
       </div>
       <div class="bk-sidebar-panel" id="tab-toc">{% if has_chapters %}<ul>{% for ch in all_chapters %}<li class="bk-toc-h1" data-chapter-index="{{ ch.spine_index }}">{% if ch.title %}{{ ch.title }}{% else %}Chapter {{ ch.spine_index }}{% endif %}</li>{% endfor %}</ul>{% endif %}</div>
       <div class="bk-sidebar-panel" id="tab-bookmarks" hidden></div>
       <div class="bk-sidebar-panel" id="tab-highlights" hidden></div>
+      <div class="bk-sidebar-panel" id="tab-snippets" hidden></div>
     </aside>
 
     <!-- The book viewport -->
@@ -130,6 +143,8 @@
       <div id="pdf-viewer" hidden></div>
       <!-- CBZ: image pages -->
       <div id="cbz-viewer" hidden></div>
+      <!-- CBR: image pages served via API -->
+      <div id="cbr-viewer" hidden></div>
     </div>
 
     <!-- Settings panel -->
@@ -180,6 +195,7 @@
     <button class="bk-hl-color" data-color="pink" style="background:#fbcfe8" title="Pink"></button>
     <button class="bk-hl-color" data-color="orange" style="background:#fed7aa" title="Orange"></button>
     <button class="bk-hl-remove" id="hl-remove" title="Remove highlight">✕</button>
+    <button class="bk-hl-snippet" id="hl-snippet" title="Save as snippet">"</button>
   </div>
 
   <!-- Bookmark dialog -->
@@ -201,6 +217,33 @@
       <div class="bk-modal-footer">
         <button class="bk-btn" id="bm-cancel">Cancel</button>
         <button class="bk-btn bk-btn-primary" id="bm-save">Save Bookmark</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Snippet dialog -->
+  <div class="bk-modal" id="snippet-modal" hidden>
+    <div class="bk-modal-backdrop"></div>
+    <div class="bk-modal-box bk-modal-sm">
+      <div class="bk-modal-header">
+        <h2>Save Snippet</h2>
+        <button class="bk-modal-close">&times;</button>
+      </div>
+      <div class="bk-field">
+        <label>Selected text</label>
+        <blockquote id="sn-preview" class="bk-snippet-preview"></blockquote>
+      </div>
+      <div class="bk-field">
+        <label for="sn-title">Title (optional)</label>
+        <input type="text" id="sn-title" class="bk-input" placeholder="Give this excerpt a name…">
+      </div>
+      <div class="bk-field">
+        <label for="sn-note">Note (optional)</label>
+        <textarea id="sn-note" class="bk-input" rows="2"></textarea>
+      </div>
+      <div class="bk-modal-footer">
+        <button class="bk-btn" id="sn-cancel">Cancel</button>
+        <button class="bk-btn bk-btn-primary" id="sn-save">Save Snippet</button>
       </div>
     </div>
   </div>

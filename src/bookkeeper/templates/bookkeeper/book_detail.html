@@ -6,13 +6,22 @@
 {% block content %}
 <div class="bk-book-detail">
   <div class="bk-detail-cover-col">
-    {% if book.cover %}
-    <img src="{{ book.cover.url }}" alt="{{ book.title }} cover" class="bk-detail-cover">
+    {% with cover_url=user_book.effective_cover_url %}
+    {% if cover_url %}
+    <img src="{{ cover_url }}" alt="{{ book.title }} cover" class="bk-detail-cover" id="bk-cover-img">
     {% else %}
-    <div class="bk-detail-cover bk-cover-placeholder">
+    <div class="bk-detail-cover bk-cover-placeholder" id="bk-cover-img">
       <span>{{ book.get_format_display }}</span>
     </div>
     {% endif %}
+    {% endwith %}
+
+    <div class="bk-cover-change">
+      <label for="bk-cover-input" class="bk-btn bk-btn-sm">Change cover</label>
+      <input type="file" id="bk-cover-input" accept="image/jpeg,image/png,image/webp,image/gif"
+             data-url="{% url 'bookkeeper:api_cover' book.slug %}" hidden>
+      <span class="bk-cover-error bk-muted" hidden></span>
+    </div>
 
     <a href="{{ book.get_reader_url }}" class="bk-btn bk-btn-primary bk-btn-block bk-read-btn">
       {% if progress and progress.percentage > 0 %}
@@ -32,6 +41,9 @@
     {% endif %}
 
     <div class="bk-detail-actions">
+      {% if user == book.added_by %}
+      <a href="{% url 'bookkeeper:book_edit' book.slug %}" class="bk-btn">Edit Details</a>
+      {% endif %}
       <button class="bk-btn bk-favorite-btn {% if user_book.is_favorite %}active{% endif %}"
               data-slug="{{ book.slug }}" data-url="{% url 'bookkeeper:api_favorite' book.slug %}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="{% if user_book.is_favorite %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
@@ -46,6 +58,9 @@
       {% else %}
       <span class="bk-badge bk-badge-finished">Finished ✓</span>
       {% endif %}
+      <button class="bk-btn bk-delete-btn" data-url="{% url 'bookkeeper:api_delete' book.slug %}">
+        Delete from Library
+      </button>
     </div>
   </div>
 
@@ -77,6 +92,15 @@
     <div class="bk-detail-description">
       <h2>About this book</h2>
       <p>{{ book.description }}</p>
+    </div>
+    {% endif %}
+
+    {% if book.amazon_url %}
+    <div class="bk-detail-amazon">
+      <a href="{{ book.amazon_url }}" target="_blank" rel="noopener sponsored" class="bk-btn">
+        Buy on Amazon
+      </a>
+      <p class="bk-affiliate-disclosure">As an Amazon Associate, we earn from qualifying purchases.</p>
     </div>
     {% endif %}
 
@@ -135,6 +159,38 @@ document.querySelector('.bk-finish-btn')?.addEventListener('click', async functi
   this.replaceWith(Object.assign(document.createElement('span'), {
     className: 'bk-badge bk-badge-finished', textContent: 'Finished ✓'
   }));
+});
+document.querySelector('.bk-delete-btn')?.addEventListener('click', async function() {
+  if (!confirm('Remove this book from your library? The book will not be deleted — you can add it back anytime.')) return;
+  const res = await BK.post(this.dataset.url);
+  if (res.redirect) window.location.href = res.redirect;
+});
+const coverInput = document.getElementById('bk-cover-input');
+const coverError = document.querySelector('.bk-cover-error');
+coverInput?.addEventListener('change', async () => {
+  const file = coverInput.files[0];
+  if (!file) return;
+  coverError.hidden = true;
+  const fd = new FormData();
+  fd.append('cover', file);
+  const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] ?? '';
+  const res = await fetch(coverInput.dataset.url, {
+    method: 'POST', body: fd, headers: { 'X-CSRFToken': csrf },
+  });
+  const data = await res.json();
+  if (data.ok) {
+    const img = document.getElementById('bk-cover-img');
+    const newImg = document.createElement('img');
+    newImg.src = data.cover_url;
+    newImg.alt = img.alt || '';
+    newImg.className = 'bk-detail-cover';
+    newImg.id = 'bk-cover-img';
+    img.replaceWith(newImg);
+  } else {
+    coverError.textContent = data.error || 'Upload failed.';
+    coverError.hidden = false;
+  }
+  coverInput.value = '';
 });
 </script>
 {% endblock %}
