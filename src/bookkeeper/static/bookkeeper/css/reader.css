@@ -315,6 +315,7 @@ body:has(#bk-reader) .bk-main {
 #pdf-viewer {
   flex: 1;
   overflow-y: auto;
+  overflow-x: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -324,20 +325,23 @@ body:has(#bk-reader) .bk-main {
 .bk-pdf-page {
   box-shadow: var(--bk-shadow-md, 0 4px 12px rgba(0,0,0,.12));
   border-radius: 4px;
-  max-width: 100%;
+  display: block;
 }
+
+/* Shared nav bar (PDF + comics) */
 .bk-pdf-nav {
   position: sticky;
   bottom: 1rem;
   display: flex;
   align-items: center;
-  gap: .75rem;
+  gap: .5rem;
   background: var(--rd-surface);
   border: 1px solid var(--rd-border);
   border-radius: 99px;
   padding: .4rem .75rem;
   box-shadow: var(--bk-shadow-md);
   align-self: center;
+  flex-shrink: 0;
 }
 .bk-pdf-nav button {
   background: none;
@@ -360,46 +364,38 @@ body:has(#bk-reader) .bk-main {
   background: var(--rd-bg);
   color: var(--rd-text);
 }
+.bk-zoom-label {
+  font-size: .8rem;
+  color: var(--rd-muted);
+  min-width: 2.8rem;
+  text-align: center;
+}
+.bk-zoom-reset { font-size: .95rem !important; }
+.bk-nav-sep {
+  width: 1px;
+  height: 1.1rem;
+  background: var(--rd-border);
+  margin: 0 .1rem;
+}
 
-/* CBZ viewer */
-#cbz-viewer {
+/* CBZ / CBR comic viewer */
+#cbz-viewer,
+#cbr-viewer {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  position: relative;
+  padding: 1.5rem;
+  gap: 1rem;
 }
-.bk-cbz-page {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+.bk-comic-page {
+  display: block;
+  height: auto;
+  box-shadow: var(--bk-shadow-md, 0 4px 12px rgba(0,0,0,.12));
+  border-radius: 2px;
   user-select: none;
-}
-.bk-cbz-nav {
-  position: absolute;
-  top: 0; bottom: 0;
-  width: 30%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  opacity: 0;
-  transition: opacity .2s;
-}
-.bk-cbz-nav:hover { opacity: 1; }
-.bk-cbz-nav-prev { left: 0; justify-content: flex-start; padding-left: .75rem; }
-.bk-cbz-nav-next { right: 0; justify-content: flex-end; padding-right: .75rem; }
-.bk-cbz-nav span {
-  background: rgba(0,0,0,.35);
-  color: #fff;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
 }
 
 /* ── Settings panel ──────────────────────────────────────────── */
