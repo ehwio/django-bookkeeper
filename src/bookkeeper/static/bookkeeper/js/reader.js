@@ -270,6 +270,8 @@
   let pendingBookmarkPos = null, pendingBookmarkPage = 1;
 
   el('btn-bookmark').addEventListener('click', () => {
+    // Capture position live at click time rather than relying on the last scroll event
+    pendingBookmarkPos  = getCurrentPos();
     el('bookmark-modal').removeAttribute('hidden');
     el('bm-title').focus();
   });
@@ -378,6 +380,8 @@
   let navigateTo = () => {};
   let updateContentStyles = () => {};
   let applyHighlight = () => {};
+  // Returns the live position string at the moment of calling (for bookmarks)
+  let getCurrentPos = () => pendingBookmarkPos || '';
 
   function hideLoading() { el('reader-loading').style.display = 'none'; }
 
@@ -528,6 +532,7 @@
     nextBtn.addEventListener('click', () => rendition.next());
 
     navigateTo = (cfi) => rendition.display(cfi);
+    getCurrentPos = () => pendingBookmarkPos || '';
 
     document.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -626,6 +631,7 @@
     });
 
     navigateTo = (_, page) => renderPage(page);
+    getCurrentPos = () => `${currentPage}`;
     updateContentStyles = () => {};
     await renderPage(currentPage);
     hideLoading();
@@ -704,6 +710,7 @@
     el('tab-toc').appendChild(ul);
 
     navigateTo = (_, page) => showPage(page - 1);
+    getCurrentPos = () => `${current + 1}`;
     updateContentStyles = () => {};
     await showPage(current);
     hideLoading();
@@ -789,6 +796,7 @@
     }
 
     navigateTo = (_, page) => showPage(page - 1);
+    getCurrentPos = () => `${current + 1}`;
     updateContentStyles = () => {};
     await showPage(current);
     hideLoading();
@@ -983,6 +991,7 @@
       const [idx, off] = pos.split(':').map(Number);
       loadChapter(idx, off || 0);
     };
+    getCurrentPos = () => `${currentIndex}:${charOffsetAtScrollTop()}`;
 
     // ── Initial load ──────────────────────────────────────────────
     let initCharOffset = 0;
