@@ -16,6 +16,11 @@ def cover_upload_path(instance, filename):
     return f"bookkeeper/covers/{instance.slug}{ext}"
 
 
+def user_cover_upload_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    return f"bookkeeper/covers/user_{instance.user_id}/{instance.book.slug}{ext}"
+
+
 class BookFormat(models.TextChoices):
     PDF = "pdf", _("PDF")
     EPUB = "epub", _("EPUB")
@@ -117,6 +122,7 @@ class UserBook(models.Model):
     date_last_read = models.DateTimeField(null=True, blank=True)
     is_favorite = models.BooleanField(default=False)
     is_finished = models.BooleanField(default=False)
+    cover_override = models.ImageField(upload_to=user_cover_upload_path, blank=True, null=True)
 
     class Meta:
         unique_together = ("user", "book")
@@ -124,6 +130,15 @@ class UserBook(models.Model):
 
     def __str__(self):
         return f"{self.user} / {self.book}"
+
+    @property
+    def effective_cover_url(self):
+        """Return per-user override URL if set, otherwise fall back to the book's cover."""
+        if self.cover_override:
+            return self.cover_override.url
+        if self.book.cover:
+            return self.book.cover.url
+        return None
 
 
 class ReadingProgress(models.Model):

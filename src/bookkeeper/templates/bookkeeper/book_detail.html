@@ -6,13 +6,22 @@
 {% block content %}
 <div class="bk-book-detail">
   <div class="bk-detail-cover-col">
-    {% if book.cover %}
-    <img src="{{ book.cover.url }}" alt="{{ book.title }} cover" class="bk-detail-cover">
+    {% with cover_url=user_book.effective_cover_url %}
+    {% if cover_url %}
+    <img src="{{ cover_url }}" alt="{{ book.title }} cover" class="bk-detail-cover" id="bk-cover-img">
     {% else %}
-    <div class="bk-detail-cover bk-cover-placeholder">
+    <div class="bk-detail-cover bk-cover-placeholder" id="bk-cover-img">
       <span>{{ book.get_format_display }}</span>
     </div>
     {% endif %}
+    {% endwith %}
+
+    <div class="bk-cover-change">
+      <label for="bk-cover-input" class="bk-btn bk-btn-sm">Change cover</label>
+      <input type="file" id="bk-cover-input" accept="image/jpeg,image/png,image/webp,image/gif"
+             data-url="{% url 'bookkeeper:api_cover' book.slug %}" hidden>
+      <span class="bk-cover-error bk-muted" hidden></span>
+    </div>
 
     <a href="{{ book.get_reader_url }}" class="bk-btn bk-btn-primary bk-btn-block bk-read-btn">
       {% if progress and progress.percentage > 0 %}
@@ -135,6 +144,33 @@ document.querySelector('.bk-finish-btn')?.addEventListener('click', async functi
   this.replaceWith(Object.assign(document.createElement('span'), {
     className: 'bk-badge bk-badge-finished', textContent: 'Finished ✓'
   }));
+});
+const coverInput = document.getElementById('bk-cover-input');
+const coverError = document.querySelector('.bk-cover-error');
+coverInput?.addEventListener('change', async () => {
+  const file = coverInput.files[0];
+  if (!file) return;
+  coverError.hidden = true;
+  const fd = new FormData();
+  fd.append('cover', file);
+  const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] ?? '';
+  const res = await fetch(coverInput.dataset.url, {
+    method: 'POST', body: fd, headers: { 'X-CSRFToken': csrf },
+  });
+  const data = await res.json();
+  if (data.ok) {
+    const img = document.getElementById('bk-cover-img');
+    const newImg = document.createElement('img');
+    newImg.src = data.cover_url;
+    newImg.alt = img.alt || '';
+    newImg.className = 'bk-detail-cover';
+    newImg.id = 'bk-cover-img';
+    img.replaceWith(newImg);
+  } else {
+    coverError.textContent = data.error || 'Upload failed.';
+    coverError.hidden = false;
+  }
+  coverInput.value = '';
 });
 </script>
 {% endblock %}

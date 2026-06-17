@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/book/<slug:slug>/rate/", views.api_rate, name="api_rate"),
     path("api/book/<slug:slug>/finish/", views.api_finish, name="api_finish"),
     path("api/book/<slug:slug>/favorite/", views.api_favorite, name="api_favorite"),
+    path("api/book/<slug:slug>/cover/", views.api_cover, name="api_cover"),
     path(
         "api/book/<slug:slug>/highlight/",
         views.api_highlight_create,

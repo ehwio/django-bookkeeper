@@ -391,6 +391,23 @@ def api_favorite(request, slug):
     return JsonResponse({"ok": True, "is_favorite": user_book.is_favorite})
 
 
+@login_required
+@require_POST
+def api_cover(request, slug):
+    book = get_object_or_404(Book, slug=slug)
+    user_book, _ = UserBook.objects.get_or_create(user=request.user, book=book)
+    file = request.FILES.get("cover")
+    if not file:
+        return JsonResponse({"ok": False, "error": "No file provided."}, status=400)
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+        return JsonResponse({"ok": False, "error": "Unsupported image type."}, status=400)
+    if user_book.cover_override:
+        user_book.cover_override.delete(save=False)
+    user_book.cover_override.save(file.name, file, save=False)
+    user_book.save(update_fields=["cover_override"])
+    return JsonResponse({"ok": True, "cover_url": user_book.cover_override.url})
+
+
 # ---------------------------------------------------------------------------
 @login_required
 def api_chapter(request, slug, index):
