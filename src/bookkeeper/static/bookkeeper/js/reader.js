@@ -576,6 +576,11 @@
              min="1" max="${totalPages}" value="${currentPage}">
       <span style="font-size:.8rem;color:var(--rd-muted)">/ ${totalPages}</span>
       <button id="pdf-next" title="Next page">&#8594;</button>
+      <span class="bk-nav-sep"></span>
+      <button id="pdf-zoom-out" title="Zoom out">&#8722;</button>
+      <span id="pdf-zoom-label" class="bk-zoom-label">100%</span>
+      <button id="pdf-zoom-in" title="Zoom in">&#43;</button>
+      <button id="pdf-zoom-reset" title="Reset zoom" class="bk-zoom-reset">&#8634;</button>
     `;
     viewer.appendChild(nav);
 
@@ -583,24 +588,61 @@
     canvas.className = 'bk-pdf-page';
     viewer.insertBefore(canvas, nav);
 
+    let pdfZoom = 1.0;
+    const ZOOM_STEP = 0.25;
+    const ZOOM_MIN  = 0.5;
+    const ZOOM_MAX  = 4.0;
+
+    function fitScale() {
+      // Available width minus viewer padding (1.5rem each side ≈ 48px)
+      const available = viewer.clientWidth - 48;
+      return available > 0 ? available / 612 : 1; // 612pt = standard US letter width
+    }
+
     async function renderPage(n) {
       currentPage = Math.max(1, Math.min(n, totalPages));
       el('pdf-page-input').value = currentPage;
       el('pdf-prev').disabled = currentPage <= 1;
       el('pdf-next').disabled = currentPage >= totalPages;
       const page = await pdf.getPage(currentPage);
-      const vp   = page.getViewport({ scale: 1.5 });
+      const dpr  = window.devicePixelRatio || 1;
+      const scale = fitScale() * pdfZoom * dpr;
+      const vp   = page.getViewport({ scale });
       canvas.width  = vp.width;
       canvas.height = vp.height;
+      canvas.style.width  = (vp.width  / dpr) + 'px';
+      canvas.style.height = (vp.height / dpr) + 'px';
       await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
       pendingBookmarkPos  = String(currentPage);
       pendingBookmarkPage = currentPage;
       saveProgress(String(currentPage), currentPage, (currentPage / totalPages) * 100);
     }
 
+    function updateZoomLabel() {
+      el('pdf-zoom-label').textContent = Math.round(pdfZoom * 100) + '%';
+    }
+
     el('pdf-prev').addEventListener('click', () => renderPage(currentPage - 1));
     el('pdf-next').addEventListener('click', () => renderPage(currentPage + 1));
     el('pdf-page-input').addEventListener('change', e => renderPage(parseInt(e.target.value)));
+    el('pdf-zoom-in').addEventListener('click', () => {
+      pdfZoom = Math.min(ZOOM_MAX, pdfZoom + ZOOM_STEP);
+      updateZoomLabel();
+      renderPage(currentPage);
+    });
+    el('pdf-zoom-out').addEventListener('click', () => {
+      pdfZoom = Math.max(ZOOM_MIN, pdfZoom - ZOOM_STEP);
+      updateZoomLabel();
+      renderPage(currentPage);
+    });
+    el('pdf-zoom-reset').addEventListener('click', () => {
+      pdfZoom = 1.0;
+      updateZoomLabel();
+      renderPage(currentPage);
+    });
+
+    const pdfResizeObs = new ResizeObserver(() => renderPage(currentPage));
+    pdfResizeObs.observe(viewer);
 
     document.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -659,18 +701,33 @@
     let current = Math.min(initPage - 1, total - 1);
 
     const img = document.createElement('img');
-    img.className = 'bk-cbz-page';
+    img.className = 'bk-comic-page';
     img.alt = 'Comic page';
     viewer.appendChild(img);
 
-    const prev = document.createElement('div');
-    prev.className = 'bk-cbz-nav bk-cbz-nav-prev';
-    prev.innerHTML = '<span>&#8592;</span>';
-    const next = document.createElement('div');
-    next.className = 'bk-cbz-nav bk-cbz-nav-next';
-    next.innerHTML = '<span>&#8594;</span>';
-    viewer.appendChild(prev);
-    viewer.appendChild(next);
+    const nav = document.createElement('div');
+    nav.className = 'bk-pdf-nav';
+    nav.innerHTML = `
+      <button id="cbz-prev" title="Previous page">&#8592;</button>
+      <span id="cbz-page-label" class="bk-zoom-label" style="min-width:4rem;text-align:center">1 / ${total}</span>
+      <button id="cbz-next" title="Next page">&#8594;</button>
+      <span class="bk-nav-sep"></span>
+      <button id="cbz-zoom-out" title="Zoom out">&#8722;</button>
+      <span id="cbz-zoom-label" class="bk-zoom-label">100%</span>
+      <button id="cbz-zoom-in" title="Zoom in">&#43;</button>
+      <button id="cbz-zoom-reset" title="Reset zoom" class="bk-zoom-reset">&#8634;</button>
+    `;
+    viewer.appendChild(nav);
+
+    let cbzZoom = 1.0;
+    const ZOOM_STEP = 0.25;
+    const ZOOM_MIN  = 0.25;
+    const ZOOM_MAX  = 4.0;
+
+    function applyZoom() {
+      img.style.width = (cbzZoom * 100) + '%';
+      el('cbz-zoom-label').textContent = Math.round(cbzZoom * 100) + '%';
+    }
 
     let blobUrl = null;
     async function showPage(n) {
@@ -679,25 +736,33 @@
       const data = await zip.files[pages[current]].async('blob');
       blobUrl = URL.createObjectURL(data);
       img.src = blobUrl;
+      viewer.scrollTop = 0;
+      el('cbz-page-label').textContent = `${current + 1} / ${total}`;
       const pageNum = current + 1;
       pendingBookmarkPos  = String(pageNum);
       pendingBookmarkPage = pageNum;
       saveProgress(String(pageNum), pageNum, (pageNum / total) * 100);
     }
 
-    prev.addEventListener('click', () => showPage(current - 1));
-    next.addEventListener('click', () => showPage(current + 1));
-    viewer.addEventListener('click', e => {
-      if (e.target === prev || prev.contains(e.target)) return;
-      if (e.target === next || next.contains(e.target)) return;
-      const x = e.clientX / window.innerWidth;
-      if (x < 0.35) showPage(current - 1);
-      else if (x > 0.65) showPage(current + 1);
+    el('cbz-prev').addEventListener('click', () => showPage(current - 1));
+    el('cbz-next').addEventListener('click', () => showPage(current + 1));
+    el('cbz-zoom-in').addEventListener('click', () => {
+      cbzZoom = Math.min(ZOOM_MAX, cbzZoom + ZOOM_STEP);
+      applyZoom();
     });
+    el('cbz-zoom-out').addEventListener('click', () => {
+      cbzZoom = Math.max(ZOOM_MIN, cbzZoom - ZOOM_STEP);
+      applyZoom();
+    });
+    el('cbz-zoom-reset').addEventListener('click', () => {
+      cbzZoom = 1.0;
+      applyZoom();
+    });
+
     document.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') showPage(current + 1);
-      if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   showPage(current - 1);
+      if (e.key === 'ArrowRight') showPage(current + 1);
+      if (e.key === 'ArrowLeft')  showPage(current - 1);
     });
 
     const ul = document.createElement('ul');
@@ -712,6 +777,7 @@
     navigateTo = (_, page) => showPage(page - 1);
     getCurrentPos = () => `${current + 1}`;
     updateContentStyles = () => {};
+    applyZoom();
     await showPage(current);
     hideLoading();
   }
@@ -747,41 +813,65 @@
     let current = Math.min(initPage - 1, total ? total - 1 : 0);
 
     const img = document.createElement('img');
-    img.className = 'bk-cbz-page';
+    img.className = 'bk-comic-page';
     img.alt = 'Comic page';
     viewer.appendChild(img);
 
-    const prev = document.createElement('div');
-    prev.className = 'bk-cbz-nav bk-cbz-nav-prev';
-    prev.innerHTML = '<span>&#8592;</span>';
-    const next = document.createElement('div');
-    next.className = 'bk-cbz-nav bk-cbz-nav-next';
-    next.innerHTML = '<span>&#8594;</span>';
-    viewer.appendChild(prev);
-    viewer.appendChild(next);
+    const totalLabel = total ? ` / ${total}` : '';
+    const nav = document.createElement('div');
+    nav.className = 'bk-pdf-nav';
+    nav.innerHTML = `
+      <button id="cbr-prev" title="Previous page">&#8592;</button>
+      <span id="cbr-page-label" class="bk-zoom-label" style="min-width:4rem;text-align:center">1${totalLabel}</span>
+      <button id="cbr-next" title="Next page">&#8594;</button>
+      <span class="bk-nav-sep"></span>
+      <button id="cbr-zoom-out" title="Zoom out">&#8722;</button>
+      <span id="cbr-zoom-label" class="bk-zoom-label">100%</span>
+      <button id="cbr-zoom-in" title="Zoom in">&#43;</button>
+      <button id="cbr-zoom-reset" title="Reset zoom" class="bk-zoom-reset">&#8634;</button>
+    `;
+    viewer.appendChild(nav);
+
+    let cbrZoom = 1.0;
+    const ZOOM_STEP = 0.25;
+    const ZOOM_MIN  = 0.25;
+    const ZOOM_MAX  = 4.0;
+
+    function applyZoom() {
+      img.style.width = (cbrZoom * 100) + '%';
+      el('cbr-zoom-label').textContent = Math.round(cbrZoom * 100) + '%';
+    }
 
     async function showPage(n) {
       current = Math.max(0, total ? Math.min(n, total - 1) : n);
       img.src = pageUrl(current);
+      viewer.scrollTop = 0;
+      el('cbr-page-label').textContent = `${current + 1}${totalLabel}`;
       const pageNum = current + 1;
       pendingBookmarkPos  = String(pageNum);
       pendingBookmarkPage = pageNum;
       saveProgress(String(pageNum), pageNum, total ? (pageNum / total) * 100 : 0);
     }
 
-    prev.addEventListener('click', () => showPage(current - 1));
-    next.addEventListener('click', () => showPage(current + 1));
-    viewer.addEventListener('click', e => {
-      if (e.target === prev || prev.contains(e.target)) return;
-      if (e.target === next || next.contains(e.target)) return;
-      const x = e.clientX / window.innerWidth;
-      if (x < 0.35) showPage(current - 1);
-      else if (x > 0.65) showPage(current + 1);
+    el('cbr-prev').addEventListener('click', () => showPage(current - 1));
+    el('cbr-next').addEventListener('click', () => showPage(current + 1));
+    el('cbr-zoom-in').addEventListener('click', () => {
+      cbrZoom = Math.min(ZOOM_MAX, cbrZoom + ZOOM_STEP);
+      applyZoom();
     });
+    el('cbr-zoom-out').addEventListener('click', () => {
+      cbrZoom = Math.max(ZOOM_MIN, cbrZoom - ZOOM_STEP);
+      applyZoom();
+    });
+    el('cbr-zoom-reset').addEventListener('click', () => {
+      cbrZoom = 1.0;
+      applyZoom();
+    });
+
     document.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') showPage(current + 1);
-      if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   showPage(current - 1);
+      if (e.key === 'ArrowRight') showPage(current + 1);
+      if (e.key === 'ArrowLeft')  showPage(current - 1);
     });
 
     if (total) {
@@ -798,6 +888,7 @@
     navigateTo = (_, page) => showPage(page - 1);
     getCurrentPos = () => `${current + 1}`;
     updateContentStyles = () => {};
+    applyZoom();
     await showPage(current);
     hideLoading();
   }
