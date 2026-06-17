@@ -89,10 +89,11 @@ python manage.py migrate
 
 ## Optional dependencies
 
-| Feature | Package |
+| Feature | Package / Requirement |
 |---------|---------|
 | Social login | `django-social-auth-app-django` |
 | Cloud storage | `django-storages` |
+| CBR comic support | system `unrar` or `unar` binary (`rarfile` is included automatically) |
 
 ## Hooks
 

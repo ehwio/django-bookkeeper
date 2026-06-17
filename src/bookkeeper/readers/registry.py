@@ -13,4 +13,7 @@ def get_reader(format: str, file_obj):
     elif format == BookFormat.CBZ:
         from .cbz import CbzReader
         return CbzReader(file_obj)
+    elif format == BookFormat.CBR:
+        from .cbr import CbrReader
+        return CbrReader(file_obj)
     raise ReaderError(f"Unsupported format: {format}")
