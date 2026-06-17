@@ -64,9 +64,6 @@ class Book(models.Model):
             models.Index(fields=["author"]),
             models.Index(fields=["format"]),
         ]
-        permissions = [
-            ("delete_book", "Can delete a book from library"),
-        ]
 
     def __str__(self):
         return f"{self.title} — {self.author}" if self.author else self.title
