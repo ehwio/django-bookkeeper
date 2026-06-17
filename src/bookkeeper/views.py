@@ -420,7 +420,7 @@ def api_comic_page(request, slug, index):
     if index < 0 or index >= len(pages):
         return HttpResponse(status=404)
     name = pages[index]
-    data = reader._rf.read(name) if book.format == BookFormat.CBR else reader._zf.read(name)
+    data = reader._read(name) if book.format == BookFormat.CBR else reader._zf.read(name)
     ext = name.rsplit(".", 1)[-1].lower()
     content_type = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
     response = HttpResponse(data, content_type=content_type)
