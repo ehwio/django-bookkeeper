@@ -40,7 +40,7 @@ class CbrReader(BaseReader):
                     "CBR support requires 'unrar' or 'unar' to be installed on the system. "
                     f"Details: {e}"
                 ) from e
-            except rarfile.BadRarFile:
+            except (rarfile.BadRarFile, rarfile.NotRarFile):
                 buf.seek(0)
 
         # File is not a valid RAR (or rarfile unavailable) — try ZIP
