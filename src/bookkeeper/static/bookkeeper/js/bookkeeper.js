@@ -74,9 +74,9 @@ const BK = (() => {
     });
 
     function onFileSelected(file) {
-      const allowed = ['.pdf', '.epub', '.cbz'];
+      const allowed = ['.pdf', '.epub', '.cbz', '.cbr'];
       if (!allowed.some(ext => file.name.toLowerCase().endsWith(ext))) {
-        showError('Only PDF, EPUB, and CBZ files are supported.');
+        showError('Only PDF, EPUB, CBZ, and CBR files are supported.');
         return;
       }
       uploadError.setAttribute('hidden', '');
