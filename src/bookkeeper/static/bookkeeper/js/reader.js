@@ -247,7 +247,7 @@
     pendingSelection = null;
   }
 
-  document.addEventListener('click', e => {
+  document.addEventListener('mousedown', e => {
     if (!hlMenu.contains(e.target)) hideHighlightMenu();
   });
 
