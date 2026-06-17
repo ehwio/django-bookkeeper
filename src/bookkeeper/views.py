@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.base import ContentFile
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
@@ -158,7 +158,10 @@ def upload_book(request):
 def _detect_format(file_obj):
     name = getattr(file_obj, "name", "")
     ext = os.path.splitext(name)[1].lower().lstrip(".")
-    mapping = {"pdf": BookFormat.PDF, "epub": BookFormat.EPUB, "cbz": BookFormat.CBZ}
+    mapping = {
+        "pdf": BookFormat.PDF, "epub": BookFormat.EPUB,
+        "cbz": BookFormat.CBZ, "cbr": BookFormat.CBR,
+    }
     return mapping.get(ext)
 
 
@@ -406,6 +409,23 @@ def api_cover(request, slug):
     user_book.cover_override.save(file.name, file, save=False)
     user_book.save(update_fields=["cover_override"])
     return JsonResponse({"ok": True, "cover_url": user_book.cover_override.url})
+
+
+@login_required
+def api_comic_page(request, slug, index):
+    """Serve a single page image from a CBR (or CBZ) archive by page index."""
+    book = get_object_or_404(Book, slug=slug)
+    reader = get_reader(book.format, book.file)
+    pages = reader._pages
+    if index < 0 or index >= len(pages):
+        return HttpResponse(status=404)
+    name = pages[index]
+    data = reader._rf.read(name) if book.format == BookFormat.CBR else reader._zf.read(name)
+    ext = name.rsplit(".", 1)[-1].lower()
+    content_type = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+    response = HttpResponse(data, content_type=content_type)
+    response["X-Page-Count"] = str(len(pages))
+    return response
 
 
 # ---------------------------------------------------------------------------

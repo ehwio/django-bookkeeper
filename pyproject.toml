@@ -30,6 +30,7 @@ dependencies = [
     "python-magic>=0.4.27",
     "beautifulsoup4>=4.12",
     "lxml>=5.0",
+    "rarfile>=4.2",
 ]
 
 [project.optional-dependencies]

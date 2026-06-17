@@ -25,6 +25,7 @@ class BookFormat(models.TextChoices):
     PDF = "pdf", _("PDF")
     EPUB = "epub", _("EPUB")
     CBZ = "cbz", _("CBZ / Comic Book Archive")
+    CBR = "cbr", _("CBR / Comic Book Archive (RAR)")
 
 
 class Book(models.Model):

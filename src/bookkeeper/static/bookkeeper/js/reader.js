@@ -254,6 +254,7 @@
     else if (format === 'epub')           await loadEpub();
     else if (format === 'pdf')            await loadPdf();
     else if (format === 'cbz')            await loadCbz();
+    else if (format === 'cbr')            await loadCbr();
     else {
       el('reader-loading').innerHTML =
         `<p style="color:var(--rd-muted)">Unknown format: ${format}</p>`;
@@ -567,6 +568,91 @@
       ul.appendChild(li);
     });
     el('tab-toc').appendChild(ul);
+
+    navigateTo = (_, page) => showPage(page - 1);
+    updateContentStyles = () => {};
+    await showPage(current);
+    hideLoading();
+  }
+
+  // ==============================================================
+  // CBR — pages served one-at-a-time via api_comic_page
+  // ==============================================================
+  async function loadCbr() {
+    const viewer = el('cbr-viewer');
+    viewer.removeAttribute('hidden');
+
+    const urlTemplate = reader.dataset.urlComicPage;
+    if (!urlTemplate) {
+      viewer.innerHTML = '<p style="padding:2rem;color:var(--rd-muted)">CBR page URL not configured.</p>';
+      hideLoading();
+      return;
+    }
+
+    // Fetch page count from the first page response headers isn't viable, so
+    // we rely on page_count stored on the book (passed via progress percentage
+    // being 0 initially and totalPages from the API). Instead fetch page 0
+    // to confirm access and get total from the X-Page-Count header.
+    const pageUrl = i => urlTemplate.replace(/\/0\//, `/${i}/`);
+
+    // Probe page 0 to get total page count
+    const probe = await fetch(pageUrl(0));
+    if (!probe.ok) {
+      viewer.innerHTML = '<p style="padding:2rem;color:var(--rd-muted)">Failed to load CBR.</p>';
+      hideLoading();
+      return;
+    }
+    const total = parseInt(probe.headers.get('X-Page-Count') || '0', 10) || null;
+    let current = Math.min(initPage - 1, total ? total - 1 : 0);
+
+    const img = document.createElement('img');
+    img.className = 'bk-cbz-page';
+    img.alt = 'Comic page';
+    viewer.appendChild(img);
+
+    const prev = document.createElement('div');
+    prev.className = 'bk-cbz-nav bk-cbz-nav-prev';
+    prev.innerHTML = '<span>&#8592;</span>';
+    const next = document.createElement('div');
+    next.className = 'bk-cbz-nav bk-cbz-nav-next';
+    next.innerHTML = '<span>&#8594;</span>';
+    viewer.appendChild(prev);
+    viewer.appendChild(next);
+
+    async function showPage(n) {
+      current = Math.max(0, total ? Math.min(n, total - 1) : n);
+      img.src = pageUrl(current);
+      const pageNum = current + 1;
+      pendingBookmarkPos  = String(pageNum);
+      pendingBookmarkPage = pageNum;
+      saveProgress(String(pageNum), pageNum, total ? (pageNum / total) * 100 : 0);
+    }
+
+    prev.addEventListener('click', () => showPage(current - 1));
+    next.addEventListener('click', () => showPage(current + 1));
+    viewer.addEventListener('click', e => {
+      if (e.target === prev || prev.contains(e.target)) return;
+      if (e.target === next || next.contains(e.target)) return;
+      const x = e.clientX / window.innerWidth;
+      if (x < 0.35) showPage(current - 1);
+      else if (x > 0.65) showPage(current + 1);
+    });
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') showPage(current + 1);
+      if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   showPage(current - 1);
+    });
+
+    if (total) {
+      const ul = document.createElement('ul');
+      for (let i = 0; i < total; i++) {
+        const li = document.createElement('li');
+        li.textContent = `Page ${i + 1}`;
+        li.addEventListener('click', () => showPage(i));
+        ul.appendChild(li);
+      }
+      el('tab-toc').appendChild(ul);
+    }
 
     navigateTo = (_, page) => showPage(page - 1);
     updateContentStyles = () => {};

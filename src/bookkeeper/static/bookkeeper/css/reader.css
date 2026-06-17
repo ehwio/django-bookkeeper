@@ -254,7 +254,8 @@ body:has(#bk-reader) .bk-main {
 #native-epub-viewer[hidden],
 #epub-viewer[hidden],
 #pdf-viewer[hidden],
-#cbz-viewer[hidden] { display: none; }
+#cbz-viewer[hidden],
+#cbr-viewer[hidden] { display: none; }
 
 /* Native EPUB viewer */
 #native-epub-viewer {
