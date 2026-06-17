@@ -374,3 +374,64 @@ body {
   animation: bk-spin .7s linear infinite;
 }
 @keyframes bk-spin { to { transform: rotate(360deg); } }
+
+/* ── Library drag-drop overlay ───────────────────────────────── */
+#bk-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(99, 102, 241, .15);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border: 3px dashed var(--bk-accent);
+}
+#bk-drop-overlay[hidden] { display: none; }
+.bk-drop-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .75rem;
+  color: var(--bk-accent);
+  background: var(--bk-surface);
+  padding: 2.5rem 3rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.12);
+}
+.bk-drop-overlay-inner p { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.bk-drop-overlay-inner .bk-muted { font-size: .85rem; font-weight: 400; }
+
+/* ── Upload toast notifications ──────────────────────────────── */
+#bk-upload-toasts {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  min-width: 260px;
+  max-width: 360px;
+}
+.bk-upload-toast {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: .65rem 1rem;
+  background: var(--bk-surface);
+  border: 1px solid var(--bk-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.1);
+  font-size: .85rem;
+  animation: bk-toast-in .2s ease;
+}
+.bk-upload-toast.bk-toast-out { animation: bk-toast-out .4s ease forwards; }
+.bk-toast-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-toast-status { white-space: nowrap; color: var(--bk-text-muted); flex-shrink: 0; }
+.bk-upload-toast[data-state="success"] .bk-toast-status { color: #16a34a; }
+.bk-upload-toast[data-state="error"]   .bk-toast-status { color: #dc2626; }
+@keyframes bk-toast-in  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes bk-toast-out { to   { opacity: 0; transform: translateY(8px); } }

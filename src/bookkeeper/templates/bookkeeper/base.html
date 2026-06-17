@@ -83,6 +83,23 @@
   </div>
   {% endif %}
 
+  <!-- Library drag-drop overlay (shown when files are dragged over the window) -->
+  {% if user.is_authenticated %}
+  <div id="bk-drop-overlay" hidden>
+    <div class="bk-drop-overlay-inner">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p>Drop books here to import</p>
+      <p class="bk-muted">PDF, EPUB, CBZ, CBR</p>
+    </div>
+  </div>
+  <!-- Per-file upload status toast list -->
+  <div id="bk-upload-toasts"></div>
+  {% endif %}
+
   <script src="{% static 'bookkeeper/js/bookkeeper.js' %}"></script>
   {% block extra_js %}{% endblock %}
 </body>
