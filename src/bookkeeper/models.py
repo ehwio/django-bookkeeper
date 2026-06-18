@@ -38,6 +38,7 @@ class Book(models.Model):
     publisher = models.CharField(max_length=300, blank=True)
     published_date = models.CharField(max_length=50, blank=True)
     isbn = models.CharField(max_length=20, blank=True, db_index=True)
+    amazon_url = models.URLField(max_length=500, blank=True)
     language = models.CharField(max_length=10, default="en")
 
     format = models.CharField(max_length=10, choices=BookFormat.choices)

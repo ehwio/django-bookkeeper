@@ -46,5 +46,6 @@ class BookMetadataForm(forms.ModelForm):
             "publisher",
             "published_date",
             "isbn",
+            "amazon_url",
             "language",
         ]
