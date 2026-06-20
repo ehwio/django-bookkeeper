@@ -275,6 +275,15 @@ def reader_view(request, slug):
     all_chapters = list(book.chapters.order_by("spine_index")) if book.format == "epub" else []
     has_chapters = bool(all_chapters)
 
+    # A ?position= query param (e.g. from a highlight link on the book detail page)
+    # overrides the saved reading progress for this page load only.
+    jump_position = request.GET.get("position", "")
+    jump_page = request.GET.get("page", "")
+    if jump_position:
+        progress.position = jump_position
+        if jump_page.isdigit():
+            progress.page_number = int(jump_page)
+
     # Determine which chapter to open from saved position ("chapter_index:char_offset")
     initial_chapter_index = 0
     if has_chapters and progress.position and ":" in progress.position:

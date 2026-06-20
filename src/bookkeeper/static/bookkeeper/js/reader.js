@@ -97,12 +97,16 @@
     document.querySelectorAll('.bk-theme-btn[data-theme]').forEach(b =>
       b.classList.toggle('active', b.dataset.theme === theme));
   }
+  let fitWidth = false;
+
   function applyWidth(w) {
     const widthMap = { narrow: '560px', normal: '720px', wide: '960px' };
-    el('epub-area').style.maxWidth   = widthMap[w] || '720px';
-    el('pdf-viewer').style.maxWidth  = widthMap[w] || '720px';
+    const maxW = fitWidth ? 'none' : (widthMap[w] || '720px');
+    el('epub-area').style.maxWidth  = maxW;
+    el('pdf-viewer').style.maxWidth = maxW;
     document.querySelectorAll('.bk-theme-btn[data-width]').forEach(b =>
       b.classList.toggle('active', b.dataset.width === w));
+    el('btn-fit-width').classList.toggle('active', fitWidth);
   }
   function applyFontSettings() {
     el('font-size-display').textContent = settings.fontSize + 'px';
@@ -134,6 +138,12 @@
     iconExit.hidden  = !isFS;
     btnFullscreen.classList.toggle('active', isFS);
   }
+
+  el('btn-fit-width').addEventListener('click', () => {
+    fitWidth = !fitWidth;
+    applyWidth(settings.columnWidth || 'normal');
+    updateContentStyles();
+  });
 
   btnFullscreen.addEventListener('click', async () => {
     try {
@@ -218,6 +228,7 @@
   }
   function populateSidebarHighlights() {
     const panel = el('tab-highlights');
+    panel.innerHTML = '';
     if (!allHighlights.length) {
       panel.innerHTML = '<p class="bk-muted" style="padding:.5rem">No highlights yet.</p>';
       return;
@@ -225,10 +236,27 @@
     const ul = document.createElement('ul');
     allHighlights.forEach(hl => {
       const li = document.createElement('li');
+      li.className = `bk-hl-item bk-hl-${hl.color}`;
       li.style.borderLeft = '3px solid';
-      li.style.paddingLeft = '.5rem';
-      li.textContent = `p.${hl.page_number}`;
-      li.addEventListener('click', () => navigateTo(hl.start_position, hl.page_number));
+      const navSpan = document.createElement('span');
+      navSpan.textContent = `p.${hl.page_number}`;
+      navSpan.style.flex = '1';
+      navSpan.style.cursor = 'pointer';
+      navSpan.addEventListener('click', () => navigateTo(hl.start_position, hl.page_number));
+      const delBtn = document.createElement('button');
+      delBtn.className = 'bk-btn bk-btn-sm bk-hl-del-btn';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Delete highlight';
+      delBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        await apiPost(`${URL_HL_CREATE}${hl.id}/delete/`);
+        const idx = allHighlights.findIndex(h => h.id === hl.id);
+        if (idx !== -1) allHighlights.splice(idx, 1);
+        applyHighlight();
+        populateSidebarHighlights();
+      });
+      li.appendChild(navSpan);
+      li.appendChild(delBtn);
       ul.appendChild(li);
     });
     panel.appendChild(ul);
@@ -320,6 +348,7 @@
       const color = btn.dataset.color;
       const result = await apiPost(URL_HL_CREATE, { ...pendingSelection, color });
       if (result.ok) {
+        pendingSelection.id = result.id;
         allHighlights.push({
           id: result.id,
           start_position: pendingSelection.start_position,
@@ -328,6 +357,7 @@
           note: '',
           page_number: pendingSelection.page_number,
         });
+        populateSidebarHighlights();
       }
       applyHighlight(pendingSelection.start_position, color);
       hideHighlightMenu();
@@ -1023,7 +1053,7 @@
       content.style.fontFamily = settings.fontFamily;
       content.style.lineHeight = settings.lineHeight;
       const widthMap = { narrow: '560px', normal: '680px', wide: '860px' };
-      content.style.maxWidth = widthMap[settings.columnWidth] || '680px';
+      content.style.maxWidth = fitWidth ? 'none' : (widthMap[settings.columnWidth] || '680px');
     };
 
     // ── Scroll → progress ─────────────────────────────────────────
@@ -1045,11 +1075,14 @@
     document.addEventListener('mouseup', () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) return;
-      const text = sel.toString().trim();
+      const selStr = sel.toString();
+      const text   = selStr.trim();
       if (!text || !content.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
       const range    = sel.getRangeAt(0);
       const startOff = charOffsetAt(content, range.startContainer, range.startOffset);
-      const endOff   = charOffsetAt(content, range.endContainer, range.endOffset);
+      // Triple-click puts range end at offset 0 of the next block element.
+      // Use selection string length to stay within the actual selected text.
+      const endOff   = startOff + selStr.length;
       const rect     = range.getBoundingClientRect();
       showHighlightMenu(rect.right, rect.bottom, {
         start_position: `${currentIndex}:${startOff}`,

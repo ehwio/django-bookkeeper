@@ -126,9 +126,11 @@
       <ul class="bk-highlight-list">
         {% for hl in highlights %}
         <li class="bk-highlight-item bk-hl-{{ hl.color }}">
-          <blockquote>{{ hl.text|truncatewords:30 }}</blockquote>
-          {% if hl.note %}<p class="bk-muted">{{ hl.note }}</p>{% endif %}
-          <span class="bk-muted">p.{{ hl.page_number }}</span>
+          <a href="{% url 'bookkeeper:reader' book.slug %}?position={{ hl.start_position|urlencode }}&page={{ hl.page_number }}" class="bk-highlight-link">
+            <blockquote>{{ hl.text|truncatewords:30 }}</blockquote>
+            {% if hl.note %}<p class="bk-muted">{{ hl.note }}</p>{% endif %}
+            <span class="bk-muted">p.{{ hl.page_number }}</span>
+          </a>
         </li>
         {% endfor %}
       </ul>
