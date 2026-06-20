@@ -226,8 +226,8 @@
     const ul = document.createElement('ul');
     allHighlights.forEach(hl => {
       const li = document.createElement('li');
-      li.className = 'bk-hl-item';
-      li.style.borderLeft = `3px solid`;
+      li.className = `bk-hl-item bk-hl-${hl.color}`;
+      li.style.borderLeft = '3px solid';
       const navSpan = document.createElement('span');
       navSpan.textContent = `p.${hl.page_number}`;
       navSpan.style.flex = '1';
