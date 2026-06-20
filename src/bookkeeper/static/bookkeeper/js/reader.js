@@ -218,6 +218,7 @@
   }
   function populateSidebarHighlights() {
     const panel = el('tab-highlights');
+    panel.innerHTML = '';
     if (!allHighlights.length) {
       panel.innerHTML = '<p class="bk-muted" style="padding:.5rem">No highlights yet.</p>';
       return;
@@ -225,10 +226,27 @@
     const ul = document.createElement('ul');
     allHighlights.forEach(hl => {
       const li = document.createElement('li');
-      li.style.borderLeft = '3px solid';
-      li.style.paddingLeft = '.5rem';
-      li.textContent = `p.${hl.page_number}`;
-      li.addEventListener('click', () => navigateTo(hl.start_position, hl.page_number));
+      li.className = 'bk-hl-item';
+      li.style.borderLeft = `3px solid`;
+      const navSpan = document.createElement('span');
+      navSpan.textContent = `p.${hl.page_number}`;
+      navSpan.style.flex = '1';
+      navSpan.style.cursor = 'pointer';
+      navSpan.addEventListener('click', () => navigateTo(hl.start_position, hl.page_number));
+      const delBtn = document.createElement('button');
+      delBtn.className = 'bk-btn bk-btn-sm bk-hl-del-btn';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Delete highlight';
+      delBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        await apiPost(`${URL_HL_CREATE}${hl.id}/delete/`);
+        const idx = allHighlights.findIndex(h => h.id === hl.id);
+        if (idx !== -1) allHighlights.splice(idx, 1);
+        applyHighlight();
+        populateSidebarHighlights();
+      });
+      li.appendChild(navSpan);
+      li.appendChild(delBtn);
       ul.appendChild(li);
     });
     panel.appendChild(ul);
@@ -320,6 +338,7 @@
       const color = btn.dataset.color;
       const result = await apiPost(URL_HL_CREATE, { ...pendingSelection, color });
       if (result.ok) {
+        pendingSelection.id = result.id;
         allHighlights.push({
           id: result.id,
           start_position: pendingSelection.start_position,
@@ -328,6 +347,7 @@
           note: '',
           page_number: pendingSelection.page_number,
         });
+        populateSidebarHighlights();
       }
       applyHighlight(pendingSelection.start_position, color);
       hideHighlightMenu();

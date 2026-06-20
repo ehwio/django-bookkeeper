@@ -53,7 +53,10 @@ body:has(#bk-reader) .bk-main {
   --rd-header: #ffffff;
 }
 
-/* In fullscreen the site header is gone so the reader takes the full viewport */
+/* In fullscreen hide the site header and expand the reader to full viewport */
+:fullscreen .bk-header,
+:-webkit-full-screen .bk-header { display: none; }
+
 :fullscreen #bk-reader,
 :-webkit-full-screen #bk-reader {
   height: 100vh;
@@ -507,6 +510,22 @@ input[type="range"] {
   max-height: 6rem;
   overflow-y: auto;
 }
+
+.bk-hl-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .4rem .75rem;
+  border-bottom: 1px solid var(--rd-border, #e5e7eb);
+  list-style: none;
+}
+.bk-hl-del-btn {
+  opacity: 0;
+  padding: .1rem .35rem !important;
+  font-size: .75rem !important;
+  flex-shrink: 0;
+}
+.bk-hl-item:hover .bk-hl-del-btn { opacity: 1; }
 
 .bk-snippet-item {
   padding: .6rem .75rem;
