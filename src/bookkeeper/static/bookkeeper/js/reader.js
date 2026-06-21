@@ -359,10 +359,14 @@
   const hlMenu = el('highlight-menu');
   let pendingSelection = null;
 
-  function showHighlightMenu(x, y, selData) {
+  function showHighlightMenu(rect, selData) {
     pendingSelection = selData;
-    hlMenu.style.left = x + 'px';
-    hlMenu.style.top  = (y - 48) + 'px';
+    // Centre the menu on the selection horizontally; prefer above, fall back below
+    const menuH = 60;
+    const cx = rect.left + rect.width / 2;
+    const top = rect.top > menuH + 8 ? rect.top - menuH - 8 : rect.bottom + 8;
+    hlMenu.style.left = cx + 'px';
+    hlMenu.style.top  = top + 'px';
     hlMenu.removeAttribute('hidden');
   }
   function hideHighlightMenu() {
@@ -370,9 +374,13 @@
     pendingSelection = null;
   }
 
+  // Dismiss on mousedown (desktop) or touchstart (mobile) outside the menu
   document.addEventListener('mousedown', e => {
     if (!hlMenu.contains(e.target)) hideHighlightMenu();
   });
+  document.addEventListener('touchstart', e => {
+    if (!hlMenu.contains(e.target)) hideHighlightMenu();
+  }, { passive: true });
 
   hlMenu.querySelectorAll('.bk-hl-color').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -392,6 +400,7 @@
         populateSidebarHighlights();
       }
       applyHighlight(pendingSelection.start_position, color);
+      window.getSelection()?.removeAllRanges();
       hideHighlightMenu();
     });
   });
@@ -399,6 +408,7 @@
     if (pendingSelection?.id) {
       await apiPost(`${URL_HL_CREATE}${pendingSelection.id}/delete/`);
     }
+    window.getSelection()?.removeAllRanges();
     hideHighlightMenu();
   });
 
@@ -1229,24 +1239,33 @@
     });
 
     // ── Selection → highlight menu ────────────────────────────────
-    document.addEventListener('mouseup', () => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) return;
-      const selStr = sel.toString();
-      const text   = selStr.trim();
-      if (!text || !content.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
-      const range    = sel.getRangeAt(0);
-      const startOff = charOffsetAt(content, range.startContainer, range.startOffset);
-      // Triple-click puts range end at offset 0 of the next block element.
-      // Use selection string length to stay within the actual selected text.
-      const endOff   = startOff + selStr.length;
-      const rect     = range.getBoundingClientRect();
-      showHighlightMenu(rect.right, rect.bottom, {
-        start_position: `${currentIndex}:${startOff}`,
-        end_position:   `${currentIndex}:${endOff}`,
-        text,
-        page_number: currentIndex + 1,
-      });
+    // selectionchange fires on both desktop (mouseup) and mobile (after
+    // the user drags the native iOS/Android selection handles).
+    let selChangeTimer = null;
+    document.addEventListener('selectionchange', () => {
+      clearTimeout(selChangeTimer);
+      selChangeTimer = setTimeout(() => {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed || !sel.rangeCount) {
+          // Selection cleared — hide menu unless user tapped a menu button
+          return;
+        }
+        const selStr = sel.toString();
+        const text   = selStr.trim();
+        const range  = sel.getRangeAt(0);
+        if (!text || !content.contains(range.commonAncestorContainer)) return;
+        const startOff = charOffsetAt(content, range.startContainer, range.startOffset);
+        // Triple-click puts range end at offset 0 of the next block element.
+        // Use selection string length to stay within the actual selected text.
+        const endOff = startOff + selStr.length;
+        const rect   = range.getBoundingClientRect();
+        showHighlightMenu(rect, {
+          start_position: `${currentIndex}:${startOff}`,
+          end_position:   `${currentIndex}:${endOff}`,
+          text,
+          page_number: currentIndex + 1,
+        });
+      }, 300);
     });
 
     // Wire the outer applyHighlight stub to repaint this chapter

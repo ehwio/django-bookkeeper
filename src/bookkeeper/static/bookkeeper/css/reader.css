@@ -594,6 +594,9 @@ input[type="range"] {
   border-radius: 99px;
   padding: .35rem .6rem;
   box-shadow: var(--bk-shadow-md);
+  /* Keep menu within viewport */
+  max-width: calc(100vw - 1rem);
+  transform: translateX(-50%);
 }
 .bk-highlight-menu[hidden] { display: none; }
 
@@ -606,6 +609,27 @@ input[type="range"] {
   transition: border-color .15s, transform .15s;
 }
 .bk-hl-color:hover { border-color: #555; transform: scale(1.15); }
+
+/* Larger touch targets on touch devices */
+@media (pointer: coarse) {
+  .bk-highlight-menu {
+    padding: .5rem .75rem;
+    gap: .5rem;
+  }
+  .bk-hl-color {
+    width: 36px;
+    height: 36px;
+  }
+  .bk-hl-remove,
+  .bk-hl-snippet {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+  }
+}
 
 .bk-hl-remove {
   background: none;
