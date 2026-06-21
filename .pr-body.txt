@@ -1,0 +1,10 @@
+Adds status badges to the README header using shields.io:
+
+- **PyPI version** — links to the project page on PyPI
+- **Python versions** — auto-fetched from PyPI
+- **Django versions** — 4.2, 5.0, 5.1 (from pyproject.toml classifiers)
+- **CI** — GitHub Actions workflow status for the develop branch
+- **License** — MIT
+- **Code style: Ruff** — links to the Ruff project
+
+Closes #51

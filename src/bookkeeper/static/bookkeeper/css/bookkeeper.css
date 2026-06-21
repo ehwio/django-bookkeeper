@@ -24,7 +24,7 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { font-size: 16px; scroll-behavior: smooth; }
+html { font-size: 16px; scroll-behavior: smooth; overflow-x: hidden; }
 
 body {
   font-family: var(--bk-font);
@@ -32,6 +32,7 @@ body {
   color: var(--bk-text);
   line-height: 1.6;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* ── Header ─────────────────────────────────────────────────── */
@@ -84,6 +85,9 @@ body {
   white-space: nowrap;
 }
 .bk-btn:hover { background: var(--bk-surface-2); }
+@media (pointer: coarse) {
+  .bk-btn { min-height: 44px; }
+}
 .bk-btn-primary {
   background: var(--bk-accent);
   border-color: var(--bk-accent);
@@ -187,18 +191,21 @@ body {
 .bk-library-title { display: flex; align-items: baseline; gap: .75rem; }
 .bk-library-title h1 { font-size: 1.75rem; font-weight: 700; }
 
-.bk-search-form { display: flex; gap: .5rem; flex-wrap: wrap; }
-.bk-search-wrap { position: relative; }
+.bk-search-form { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.bk-search-wrap { flex: 1 1 200px; min-width: 0; }
 .bk-search-icon { position: absolute; left: .6rem; top: 50%; transform: translateY(-50%); color: var(--bk-text-muted); pointer-events: none; }
-.bk-search-input { padding-left: 2rem; min-width: 220px; }
+.bk-search-input { padding-left: 2rem; width: 100%; }
 
 /* Book grid */
 .bk-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
 }
-@media (min-width: 640px) { .bk-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); } }
+@media (max-width: 479px) {
+  .bk-grid { grid-template-columns: 1fr; }
+}
+@media (min-width: 640px) { .bk-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1.5rem; } }
 @media (min-width: 1024px) { .bk-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
 
 .bk-book-card {
@@ -298,7 +305,10 @@ body {
   gap: 3rem;
   align-items: start;
 }
-@media (max-width: 640px) { .bk-book-detail { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .bk-book-detail { grid-template-columns: 1fr; }
+  .bk-detail-cover-col { max-width: 200px; }
+}
 
 .bk-detail-cover-col { display: flex; flex-direction: column; gap: .75rem; }
 .bk-detail-cover {
