@@ -1426,8 +1426,10 @@
       if (footerLoc)  footerLoc.textContent = label || '—';
     };
 
-    // Start auto-hide timer
-    scheduleHideChrome();
+    // Auto-hide chrome on touch devices only; mouse users keep it always visible
+    if (window.matchMedia('(pointer: coarse)').matches) {
+      scheduleHideChrome();
+    }
   }
 
   initSwipeGestures();
