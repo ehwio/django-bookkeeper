@@ -8,7 +8,7 @@
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-ff4028)](https://github.com/astral-sh/ruff)
 
 A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ).
-[![Library](docs/screenshots/screenshot-library.png)](docs/screenshots/screenshot-library-large.png)
+
 ## Features
 
 - **Upload** PDF, EPUB, and CBZ files (drag-and-drop or browse)
@@ -30,6 +30,13 @@ A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ).
 - **Extensible hook signals** for recent-books lists, activity feeds, etc.
 - Django best-practices: `django-storages` compatible, `AUTH_USER_MODEL` aware, namespaced URLs
 
+## Screenshots
+
+[![Signin](docs/screenshots/screenshot-signin.png)](docs/screenshots/screenshot-signin-large.png)
+[![Library](docs/screenshots/screenshot-library.png)](docs/screenshots/screenshot-library-large.png)
+[![Overview](docs/screenshots/screenshot-overview.png)](docs/screenshots/screenshot-overview-large.png)
+[![Reader](docs/screenshots/screenshot-reader.png)](docs/screenshots/screenshot-reader-large.png)
+
 ## Try the demo
 
 The fastest way to see Bookkeeper in action — one command downloads five
@@ -42,9 +49,6 @@ make demo
 ```
 
 Then open **http://127.0.0.1:8000/** and sign in as `demo` / `demo`.
-[![Signin](docs/screenshots/screenshot-signin.png)](docs/screenshots/screenshot-signin-large.png)
-[![Signin](docs/screenshots/screenshot-overview.png)](docs/screenshots/screenshot-overview-large.png)
-[![Signin](docs/screenshots/screenshot-reader.png)](docs/screenshots/screenshot-reader-large.png)
 
 > On subsequent runs, use `make demo-run` to start the server without re-seeding.
 > Use `make demo-reset` to wipe the database and media and re-seed from scratch.
