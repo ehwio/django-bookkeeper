@@ -6,6 +6,7 @@
 body:has(#bk-reader) {
   overflow: hidden;
   height: 100vh;
+  height: 100dvh;
 }
 body:has(#bk-reader) .bk-main {
   padding: 0;
@@ -43,6 +44,7 @@ body:has(#bk-reader) .bk-main {
   display: flex;
   flex-direction: column;
   height: calc(100vh - var(--bk-header-h));
+  height: calc(100dvh - var(--bk-header-h));
   background: var(--rd-bg);
   color: var(--rd-text);
   --rd-bg: #faf9f7;
@@ -60,7 +62,15 @@ body:has(#bk-reader) .bk-main {
 :fullscreen #bk-reader,
 :-webkit-full-screen #bk-reader {
   height: 100vh;
+  height: 100dvh;
   background: var(--rd-bg);
+}
+
+/* dvh override: fixes iOS Safari dynamic viewport (browser bar shrinks/grows) */
+@supports (height: 100dvh) {
+  body:has(#bk-reader) { height: 100dvh; }
+  #bk-reader { height: calc(100dvh - var(--bk-header-h)); }
+  :fullscreen #bk-reader, :-webkit-full-screen #bk-reader { height: 100dvh; }
 }
 
 /* ── Reader header ───────────────────────────────────────────── */
@@ -68,12 +78,13 @@ body:has(#bk-reader) .bk-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1rem;
-  height: 48px;
+  padding: 0 .5rem;
+  height: 52px;
   background: var(--rd-header);
   border-bottom: 1px solid var(--rd-border);
   flex-shrink: 0;
-  gap: .5rem;
+  gap: .25rem;
+  overflow: hidden;
 }
 .bk-reader-header-left  { display: flex; align-items: center; gap: .75rem; min-width: 0; }
 .bk-reader-header-center { flex: 1; text-align: center; }
@@ -118,10 +129,20 @@ body:has(#bk-reader) .bk-main {
   font-family: inherit;
   font-weight: 600;
   transition: background .15s, color .15s;
+  min-width: 44px;
+  min-height: 44px;
 }
 .bk-reader-btn:hover, .bk-reader-btn.active {
   background: var(--rd-border);
   color: var(--rd-text);
+}
+
+/* Mobile: hide less-critical toolbar buttons; fullscreen lives in settings panel */
+@media (max-width: 639px) {
+  #btn-fit-width,
+  #btn-fullscreen {
+    display: none;
+  }
 }
 
 /* Progress strip */
@@ -415,6 +436,15 @@ body:has(#bk-reader) .bk-main {
 }
 .bk-settings-panel[hidden] { display: none; }
 .bk-settings-panel h3 { font-size: .9rem; font-weight: 700; }
+.bk-settings-fullscreen { margin-top: .5rem; }
+#btn-fullscreen-settings {
+  width: 100%;
+  justify-content: flex-start;
+  gap: .5rem;
+  color: var(--rd-text);
+  font-weight: 500;
+  font-size: .875rem;
+}
 .bk-settings-panel label { font-size: .8rem; font-weight: 500; color: var(--rd-muted); }
 .bk-settings-panel .bk-select { width: 100%; }
 
