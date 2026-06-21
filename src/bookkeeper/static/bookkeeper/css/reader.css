@@ -27,6 +27,10 @@ body:has(#bk-reader) .bk-main {
   pointer-events: auto;
   cursor: pointer;
 }
+/* Tap zones are touch-only — don't block mouse selection or scroll */
+@media (pointer: fine) {
+  .bk-tap-zone { pointer-events: none; }
+}
 .bk-tap-zone-left  { width: 25%; }
 .bk-tap-zone-center { flex: 1; }
 .bk-tap-zone-right { width: 25%; }
