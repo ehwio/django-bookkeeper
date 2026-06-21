@@ -113,6 +113,7 @@ python manage.py migrate
 | Feature | Package / Requirement |
 |---------|---------|
 | Social login | `social-auth-app-django` |
+| CBR comic support | system `unrar` or `unar` binary |
 | Cloud storage | Already included — `django-storages` is a required dependency |
 
 ## Hooks
