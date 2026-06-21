@@ -131,12 +131,23 @@
   const btnFullscreen = el('btn-fullscreen');
   const iconEnter = el('icon-fullscreen-enter');
   const iconExit  = el('icon-fullscreen-exit');
+  const btnFsSettings = el('btn-fullscreen-settings');
+  const iconFsEnter   = document.getElementById('icon-fs-enter');
+  const iconFsExit    = document.getElementById('icon-fs-exit');
+  const fsLabel       = document.getElementById('fs-label');
 
   function syncFullscreenIcons() {
     const isFS = !!document.fullscreenElement;
     iconEnter.hidden = isFS;
     iconExit.hidden  = !isFS;
     btnFullscreen.classList.toggle('active', isFS);
+    // Also sync the settings-panel fullscreen button (shown on mobile)
+    if (btnFsSettings) {
+      btnFsSettings.classList.toggle('active', isFS);
+      if (iconFsEnter) iconFsEnter.hidden = isFS;
+      if (iconFsExit)  iconFsExit.hidden  = !isFS;
+      if (fsLabel) fsLabel.textContent = isFS ? 'Exit fullscreen' : 'Enter fullscreen';
+    }
   }
 
   el('btn-fit-width').addEventListener('click', () => {
@@ -146,6 +157,14 @@
   });
 
   btnFullscreen.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch (_) { /* embedded contexts may reject */ }
+  });
+
+  // Settings panel fullscreen button (mobile only)
+  btnFsSettings?.addEventListener('click', async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
       else await document.documentElement.requestFullscreen();
