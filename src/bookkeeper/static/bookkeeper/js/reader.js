@@ -1208,24 +1208,22 @@
 
     // ── Prev/next actions (dispatch to whichever format is active) ─
     function doPrev() {
-      // Native EPUB
-      if (typeof prevBtn !== 'undefined' && prevBtn) prevBtn.click();
-      // PDF
-      else if (typeof renderPage !== 'undefined' && renderPage) {
-        const cur = parseInt(el('pdf-page-input')?.value, 10) || 1;
-        if (cur > 1) renderPage(cur - 1);
-      }
+      // Native EPUB chapter nav
+      const nativeBtn = el('native-prev') || el('cbz-prev') || el('cbr-prev');
+      if (nativeBtn) { nativeBtn.click(); return; }
+      // PDF fallback
+      const cur = parseInt(el('pdf-page-input')?.value, 10) || 1;
+      if (cur > 1) renderPage?.(cur - 1);
     }
 
     function doNext() {
-      // Native EPUB
-      if (typeof nextBtn !== 'undefined' && nextBtn) nextBtn.click();
-      // PDF
-      else if (typeof renderPage !== 'undefined' && renderPage) {
-        const cur = parseInt(el('pdf-page-input')?.value, 10) || 1;
-        const tot = parseInt(el('pdf-page-count')?.textContent, 10) || 999;
-        if (cur < tot) renderPage(cur + 1);
-      }
+      // Native EPUB chapter nav
+      const nativeBtn = el('native-next') || el('cbz-next') || el('cbr-next');
+      if (nativeBtn) { nativeBtn.click(); return; }
+      // PDF fallback
+      const cur = parseInt(el('pdf-page-input')?.value, 10) || 1;
+      const tot = parseInt(el('pdf-page-count')?.textContent, 10) || 999;
+      if (cur < tot) renderPage?.(cur + 1);
     }
 
     // ── Touch event handlers ──────────────────────────────────────
