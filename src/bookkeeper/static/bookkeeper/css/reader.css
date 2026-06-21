@@ -66,6 +66,13 @@ body:has(#bk-reader) .bk-main {
   background: var(--rd-bg);
 }
 
+/* dvh override: fixes iOS Safari dynamic viewport (browser bar shrinks/grows) */
+@supports (height: 100dvh) {
+  body:has(#bk-reader) { height: 100dvh; }
+  #bk-reader { height: calc(100dvh - var(--bk-header-h)); }
+  :fullscreen #bk-reader, :-webkit-full-screen #bk-reader { height: 100dvh; }
+}
+
 /* ── Reader header ───────────────────────────────────────────── */
 .bk-reader-header {
   display: flex;
