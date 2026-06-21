@@ -42,6 +42,9 @@ make demo
 ```
 
 Then open **http://127.0.0.1:8000/** and sign in as `demo` / `demo`.
+[![Signin](docs/screenshots/screenshot-signin.png)](docs/screenshots/screenshot-signin-large.png)
+[![Signin](docs/screenshots/screenshot-overview.png)](docs/screenshots/screenshot-overview-large.png)
+[![Signin](docs/screenshots/screenshot-reader.png)](docs/screenshots/screenshot-reader-large.png)
 
 > On subsequent runs, use `make demo-run` to start the server without re-seeding.
 > Use `make demo-reset` to wipe the database and media and re-seed from scratch.
