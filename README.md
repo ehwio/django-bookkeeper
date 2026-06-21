@@ -9,6 +9,8 @@ A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ).
 - **Deduplication** by SHA-256 hash
 - **Modern reader** with:
   - EPUB rendering via [epub.js](https://github.com/futurepress/epub.js/)
+    (chapters are extracted to HTML at upload time for performance;
+    epub.js is used as a fallback for fixed-layout EPUBs)
   - PDF rendering via [PDF.js](https://mozilla.github.io/pdf.js/)
   - CBZ page-by-page comic reader
   - Keyboard navigation (arrow keys)
@@ -29,17 +31,21 @@ public-domain classics from Project Gutenberg and starts a local server:
 ```bash
 git clone https://github.com/ehwio/django-bookkeeper
 cd django-bookkeeper
-uv sync
 make demo
 ```
 
 Then open **http://127.0.0.1:8000/** and sign in as `demo` / `demo`.
+
+> On subsequent runs, use `make demo-run` to start the server without re-seeding.
+> Use `make demo-reset` to wipe the database and media and re-seed from scratch.
 
 **Or with Docker:**
 
 ```bash
 docker compose up
 ```
+
+> Uses `Dockerfile.demo` — builds the demo image from the `demo/` directory.
 
 The demo ships with:
 - *Pride and Prejudice* — Jane Austen
@@ -87,13 +93,27 @@ Run migrations:
 python manage.py migrate
 ```
 
+## Dependencies
+
+`django-bookkeeper` requires Django 4.2 or later and uses these packages:
+
+| Package | Purpose |
+|---------|---------|
+| `django-storages` | Storage backend abstraction |
+| `Pillow` | Image processing (covers) |
+| `ebooklib` | EPUB metadata/structure extraction |
+| `PyMuPDF` | PDF text/metadata extraction |
+| `python-magic` | File type detection |
+| `beautifulsoup4` | HTML/XML parsing |
+| `lxml` | Fast XML/HTML processing |
+| `rarfile` | CBR comic support |
+
 ## Optional dependencies
 
 | Feature | Package / Requirement |
 |---------|---------|
-| Social login | `django-social-auth-app-django` |
-| Cloud storage | `django-storages` |
-| CBR comic support | system `unrar` or `unar` binary (`rarfile` is included automatically) |
+| Social login | `social-auth-app-django` |
+| Cloud storage | Already included — `django-storages` is a required dependency |
 
 ## Hooks
 
@@ -116,8 +136,8 @@ Available signals: `book_opened`, `progress_updated`, `book_finished`, `book_rat
 git clone https://github.com/ehwio/django-bookkeeper
 cd django-bookkeeper
 uv sync --extra dev
-uv run pytest
-uv run ruff check src/ tests/
+uv run pytest --cov
+uv run ruff check src/ tests/ demo/
 ```
 
 ### GitFlow
