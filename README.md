@@ -30,6 +30,13 @@ A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ).
 - **Extensible hook signals** for recent-books lists, activity feeds, etc.
 - Django best-practices: `django-storages` compatible, `AUTH_USER_MODEL` aware, namespaced URLs
 
+## Screenshots
+
+[![Signin](docs/screenshots/screenshot-signin.png)](docs/screenshots/screenshot-signin-large.png)
+[![Library](docs/screenshots/screenshot-library.png)](docs/screenshots/screenshot-library-large.png)
+[![Overview](docs/screenshots/screenshot-overview.png)](docs/screenshots/screenshot-overview-large.png)
+[![Reader](docs/screenshots/screenshot-reader.png)](docs/screenshots/screenshot-reader-large.png)
+
 ## Try the demo
 
 The fastest way to see Bookkeeper in action — one command downloads five
