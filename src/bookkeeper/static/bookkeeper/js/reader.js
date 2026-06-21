@@ -1328,8 +1328,11 @@
     if (!zonePrev || !zoneNext || !zoneCenter) return;
 
     const SWIPE_THRESHOLD = 50;
+    const TAP_MAX_DIST = 12;
+    const TAP_MAX_MS   = 300;
     let touchStartX = 0;
     let touchStartY = 0;
+    let touchStartT = 0;
     let chromeTimer = null;
     let chromeVisible = true;
 
@@ -1387,26 +1390,38 @@
     function onTouchStart(e) {
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
+      touchStartT = e.timeStamp;
     }
 
     function onTouchEnd(e) {
-      const dx = e.changedTouches[0].clientX - touchStartX;
-      const dy = e.changedTouches[0].clientY - touchStartY;
-      // Only act on predominantly horizontal swipes
-      if (Math.abs(dx) < SWIPE_THRESHOLD) return;
-      if (Math.abs(dy) > Math.abs(dx)) return; // reject vertical
-      if (dx < 0) doNext();
-      else        doPrev();
+      const t  = e.changedTouches[0];
+      const dx = t.clientX - touchStartX;
+      const dy = t.clientY - touchStartY;
+      const dist = Math.hypot(dx, dy);
+      const dt   = e.timeStamp - touchStartT;
+
+      // Horizontal swipe
+      if (Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+        if (dx < 0) doNext(); else doPrev();
+        return;
+      }
+
+      // Short tap — determine zone by X coordinate
+      if (dist < TAP_MAX_DIST && dt < TAP_MAX_MS) {
+        const x = t.clientX;
+        const w = window.innerWidth;
+        if (x < w * 0.25) {
+          if (chromeIsVisible()) { doPrev(); scheduleHideChrome(); }
+        } else if (x > w * 0.75) {
+          if (chromeIsVisible()) { doNext(); scheduleHideChrome(); }
+        } else {
+          tapCenter();
+        }
+      }
     }
 
-    // ── Zone click handlers ────────────────────────────────────────
-    zonePrev.addEventListener('click', () => {
-      if (chromeIsVisible()) { doPrev(); scheduleHideChrome(); }
-    });
-    zoneNext.addEventListener('click', () => {
-      if (chromeIsVisible()) { doNext(); scheduleHideChrome(); }
-    });
-    zoneCenter.addEventListener('click', tapCenter);
+    // Zone divs are fully inert (pointer-events: none) — tap detection
+    // is handled above via coordinates, so no click handlers needed.
 
     // Attach swipe to the viewport container (covers all formats)
     const viewport = el('reader-viewport');

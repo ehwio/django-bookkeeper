@@ -24,12 +24,8 @@ body:has(#bk-reader) .bk-main {
   pointer-events: none;
 }
 .bk-tap-zone {
-  pointer-events: auto;
-  cursor: pointer;
-}
-/* Tap zones are touch-only — don't block mouse selection or scroll */
-@media (pointer: fine) {
-  .bk-tap-zone { pointer-events: none; }
+  /* Fully inert — tap detection is done via touchend coordinates, not hit-testing */
+  pointer-events: none;
 }
 .bk-tap-zone-left  { width: 25%; }
 .bk-tap-zone-center { flex: 1; }
@@ -360,6 +356,9 @@ body:has(#bk-reader) .bk-main {
   min-height: 0; /* required: allows scroll within constrained flex height */
   overflow-y: auto;
   background: var(--rd-surface);
+  /* iOS: let the browser scroll this element natively; contain bounce within it */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 #bk-chapter-content {
   max-width: 680px;
