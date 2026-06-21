@@ -121,11 +121,24 @@
   }
 
   // Settings panel wiring
+  const _settingsPanel = el('settings-panel');
+  const _settingsBackdrop = el('settings-backdrop');
+
+  function openSettings() {
+    _settingsPanel.removeAttribute('hidden');
+    _settingsBackdrop?.classList.add('visible');
+    el('btn-settings').classList.add('active');
+  }
+  function closeSettings() {
+    _settingsPanel.setAttribute('hidden', '');
+    _settingsBackdrop?.classList.remove('visible');
+    el('btn-settings').classList.remove('active');
+  }
+
   el('btn-settings').addEventListener('click', () => {
-    const panel = el('settings-panel');
-    panel.toggleAttribute('hidden');
-    el('btn-settings').classList.toggle('active', !panel.hidden);
+    if (_settingsPanel.hidden) openSettings(); else closeSettings();
   });
+  _settingsBackdrop?.addEventListener('click', closeSettings);
 
   // ── Fullscreen toggle ────────────────────────────────────────
   const btnFullscreen = el('btn-fullscreen');
