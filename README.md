@@ -8,7 +8,7 @@
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-ff4028)](https://github.com/astral-sh/ruff)
 
 A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ).
-
+[![Library](docs/screenshots/screenshot-library.png)](docs/screenshots/screenshot-library-large.png)
 ## Features
 
 - **Upload** PDF, EPUB, and CBZ files (drag-and-drop or browse)
