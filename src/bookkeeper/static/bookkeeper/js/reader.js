@@ -695,6 +695,51 @@
       renderPage(currentPage);
     });
 
+    // ── Pinch-to-zoom + double-tap (PDF) ─────────────────────────
+    let pdfLastTouches = null;
+    let pdfGestureActive = false;
+    let pdfLastTap = null;
+
+    viewer.addEventListener('touchmove', e => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pdfGestureActive = true;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        if (pdfLastTouches) {
+          const ratio = dist / pdfLastTouches.dist;
+          pdfZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pdfZoom * ratio));
+          updateZoomLabel();
+          el('pdf-zoom-in').disabled  = pdfZoom >= ZOOM_MAX;
+          el('pdf-zoom-out').disabled = pdfZoom <= ZOOM_MIN;
+          el('pdf-canvas-wrap').style.transform = `scale(${pdfZoom})`;
+          el('pdf-canvas-wrap').style.transformOrigin = 'top center';
+        }
+        pdfLastTouches = { dist };
+      }
+    }, { passive: false });
+
+    viewer.addEventListener('touchend', e => {
+      if (pdfGestureActive) {
+        pdfGestureActive = false;
+        pdfLastTouches = null;
+        el('pdf-canvas-wrap').style.transform = '';
+        el('pdf-canvas-wrap').style.transformOrigin = '';
+        renderPage(currentPage);
+      } else if (e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (pdfLastTap && now - pdfLastTap < 300) {
+          pdfZoom = pdfZoom > 1.05 ? 1.0 : 2.0;
+          updateZoomLabel();
+          renderPage(currentPage);
+          pdfLastTap = null;
+        } else {
+          pdfLastTap = now;
+        }
+      }
+    });
+
     const pdfResizeObs = new ResizeObserver(() => renderPage(currentPage));
     pdfResizeObs.observe(viewer);
 
@@ -813,6 +858,46 @@
       applyZoom();
     });
 
+    // ── Pinch-to-zoom + double-tap (CBZ) ────────────────────────
+    let cbzLastTouches = null;
+    let cbzGestureActive = false;
+    let cbzLastTap = null;
+
+    viewer.addEventListener('touchmove', e => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        cbzGestureActive = true;
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY,
+        );
+        if (cbzLastTouches) {
+          const ratio = dist / cbzLastTouches.dist;
+          cbzZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cbzZoom * ratio));
+          applyZoom();
+          el('cbz-zoom-in').disabled  = cbzZoom >= ZOOM_MAX;
+          el('cbz-zoom-out').disabled = cbzZoom <= ZOOM_MIN;
+        }
+        cbzLastTouches = { dist };
+      }
+    }, { passive: false });
+
+    viewer.addEventListener('touchend', e => {
+      if (cbzGestureActive) {
+        cbzGestureActive = false;
+        cbzLastTouches = null;
+      } else if (e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (cbzLastTap && now - cbzLastTap < 300) {
+          cbzZoom = cbzZoom > 1.05 ? 1.0 : 2.0;
+          applyZoom();
+          cbzLastTap = null;
+        } else {
+          cbzLastTap = now;
+        }
+      }
+    });
+
     document.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'ArrowRight') showPage(current + 1);
@@ -920,6 +1005,46 @@
     el('cbr-zoom-reset').addEventListener('click', () => {
       cbrZoom = 1.0;
       applyZoom();
+    });
+
+    // ── Pinch-to-zoom + double-tap (CBR) ───────────────────────
+    let cbrLastTouches = null;
+    let cbrGestureActive = false;
+    let cbrLastTap = null;
+
+    viewer.addEventListener('touchmove', e => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        cbrGestureActive = true;
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY,
+        );
+        if (cbrLastTouches) {
+          const ratio = dist / cbrLastTouches.dist;
+          cbrZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cbrZoom * ratio));
+          applyZoom();
+          el('cbr-zoom-in').disabled  = cbrZoom >= ZOOM_MAX;
+          el('cbr-zoom-out').disabled = cbrZoom <= ZOOM_MIN;
+        }
+        cbrLastTouches = { dist };
+      }
+    }, { passive: false });
+
+    viewer.addEventListener('touchend', e => {
+      if (cbrGestureActive) {
+        cbrGestureActive = false;
+        cbrLastTouches = null;
+      } else if (e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (cbrLastTap && now - cbrLastTap < 300) {
+          cbrZoom = cbrZoom > 1.05 ? 1.0 : 2.0;
+          applyZoom();
+          cbrLastTap = null;
+        } else {
+          cbrLastTap = now;
+        }
+      }
     });
 
     document.addEventListener('keydown', e => {
