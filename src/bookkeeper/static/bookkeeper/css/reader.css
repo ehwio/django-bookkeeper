@@ -14,6 +14,43 @@ body:has(#bk-reader) .bk-main {
   margin: 0;
 }
 
+/* ── Tap / swipe overlay ─────────────────────────────────── */
+/* Invisible tap zones over the reader viewport */
+.bk-tap-zones {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  pointer-events: none;
+}
+.bk-tap-zone {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.bk-tap-zone-left  { width: 25%; }
+.bk-tap-zone-center { flex: 1; }
+.bk-tap-zone-right { width: 25%; }
+
+/* ── Chrome auto-hide ─────────────────────────────────────── */
+/* Header/footer slide up/down with transition */
+#bk-reader:not(.chrome-hidden) .bk-reader-header,
+#bk-reader:not(.chrome-hidden) .bk-reader-footer {
+  transition: transform .25s ease, opacity .25s ease;
+}
+#bk-reader.chrome-hidden .bk-reader-header {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+#bk-reader.chrome-hidden .bk-reader-footer {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+#bk-reader.chrome-hidden .bk-tap-zones {
+  cursor: default;
+}
+
 /* Theme variables injected by JS onto #bk-reader */
 #bk-reader[data-reader-theme="light"] {
   --rd-bg:      #faf9f7;
@@ -156,6 +193,24 @@ body:has(#bk-reader) .bk-main {
   background: var(--bk-accent, #7c3aed);
   transition: width .4s;
 }
+
+/* ── Reader footer ──────────────────────────────────────────── */
+.bk-reader-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem 1rem;
+  height: 52px;
+  background: var(--rd-header);
+  border-top: 1px solid var(--rd-border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+.bk-nav-footer-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+#footer-loc-text { font-size: .8rem; color: var(--rd-muted); }
 
 /* ── Reader body ─────────────────────────────────────────────── */
 .bk-reader-body {

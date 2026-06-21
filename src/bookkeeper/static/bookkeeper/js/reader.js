@@ -1116,10 +1116,16 @@
 
     // ── Navigation ────────────────────────────────────────────────
     prevBtn.addEventListener('click', () => {
-      if (currentIndex > 0) loadChapter(currentIndex - 1);
+      if (currentIndex > 0) {
+        loadChapter(currentIndex - 1);
+        window.__bkSetNavState?.(currentIndex - 1 > 0, currentIndex < chapterCount - 1, `Ch. ${currentIndex} / ${chapterCount}`);
+      }
     });
     nextBtn.addEventListener('click', () => {
-      if (currentIndex < chapterCount - 1) loadChapter(currentIndex + 1);
+      if (currentIndex < chapterCount - 1) {
+        loadChapter(currentIndex + 1);
+        window.__bkSetNavState?.(true, currentIndex + 1 < chapterCount - 1, `Ch. ${currentIndex + 2} / ${chapterCount}`);
+      }
     });
 
     document.addEventListener('keydown', e => {
@@ -1147,6 +1153,125 @@
       initCharOffset = parseInt(initPos.split(':')[1], 10) || 0;
     }
     await loadChapter(initChapter, initCharOffset);
+    window.__bkSetNavState?.(initChapter > 0, initChapter < chapterCount - 1, `Ch. ${initChapter + 1} / ${chapterCount}`);
     hideLoading();
   }
+
+  // ==============================================================
+  // Touch swipe & tap zones
+  // ==============================================================
+  function initSwipeGestures() {
+    const zonePrev   = el('zone-prev');
+    const zoneNext   = el('zone-next');
+    const zoneCenter = el('zone-center');
+    const footerPrev = el('footer-prev');
+    const footerNext = el('footer-next');
+    const footerLoc  = el('footer-loc-text');
+
+    if (!zonePrev || !zoneNext || !zoneCenter) return;
+
+    const SWIPE_THRESHOLD = 50;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let chromeTimer = null;
+    let chromeVisible = true;
+
+    // ── Helpers ─────────────────────────────────────────────────
+    function showChrome() {
+      reader.classList.remove('chrome-hidden');
+      chromeVisible = true;
+      scheduleHideChrome();
+    }
+
+    function hideChrome() {
+      reader.classList.add('chrome-hidden');
+      chromeVisible = false;
+    }
+
+    function scheduleHideChrome() {
+      clearTimeout(chromeTimer);
+      chromeTimer = setTimeout(hideChrome, 3000);
+    }
+
+    function chromeIsVisible() {
+      return !reader.classList.contains('chrome-hidden');
+    }
+
+    function tapCenter() {
+      if (chromeIsVisible()) {
+        hideChrome();
+        clearTimeout(chromeTimer);
+      } else {
+        showChrome();
+      }
+    }
+
+    // ── Prev/next actions (dispatch to whichever format is active) ─
+    function doPrev() {
+      // Native EPUB chapter nav
+      const nativeBtn = el('native-prev') || el('cbz-prev') || el('cbr-prev');
+      if (nativeBtn) { nativeBtn.click(); return; }
+      // PDF fallback
+      const cur = parseInt(el('pdf-page-input')?.value, 10) || 1;
+      if (cur > 1) renderPage?.(cur - 1);
+    }
+
+    function doNext() {
+      // Native EPUB chapter nav
+      const nativeBtn = el('native-next') || el('cbz-next') || el('cbr-next');
+      if (nativeBtn) { nativeBtn.click(); return; }
+      // PDF fallback
+      const cur = parseInt(el('pdf-page-input')?.value, 10) || 1;
+      const tot = parseInt(el('pdf-page-count')?.textContent, 10) || 999;
+      if (cur < tot) renderPage?.(cur + 1);
+    }
+
+    // ── Touch event handlers ──────────────────────────────────────
+    function onTouchStart(e) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }
+
+    function onTouchEnd(e) {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      // Only act on predominantly horizontal swipes
+      if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+      if (Math.abs(dy) > Math.abs(dx)) return; // reject vertical
+      if (dx < 0) doNext();
+      else        doPrev();
+    }
+
+    // ── Zone click handlers ────────────────────────────────────────
+    zonePrev.addEventListener('click', () => {
+      if (chromeIsVisible()) { doPrev(); scheduleHideChrome(); }
+    });
+    zoneNext.addEventListener('click', () => {
+      if (chromeIsVisible()) { doNext(); scheduleHideChrome(); }
+    });
+    zoneCenter.addEventListener('click', tapCenter);
+
+    // Attach swipe to the viewport container (covers all formats)
+    const viewport = el('reader-viewport');
+    if (viewport) {
+      viewport.addEventListener('touchstart', onTouchStart, { passive: true });
+      viewport.addEventListener('touchend',   onTouchEnd,   { passive: true });
+    }
+
+    // Footer prev/next buttons also navigate
+    if (footerPrev) footerPrev.addEventListener('click', doPrev);
+    if (footerNext) footerNext.addEventListener('click', doNext);
+
+    // ── Update footer button + location text (called by format inits) ─
+    window.__bkSetNavState = (hasPrev, hasNext, label) => {
+      if (footerPrev) footerPrev.disabled = !hasPrev;
+      if (footerNext) footerNext.disabled = !hasNext;
+      if (footerLoc)  footerLoc.textContent = label || '—';
+    };
+
+    // Start auto-hide timer
+    scheduleHideChrome();
+  }
+
+  initSwipeGestures();
 })();
