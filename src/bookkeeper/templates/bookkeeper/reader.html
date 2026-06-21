@@ -94,6 +94,17 @@
          style="width: {{ progress.percentage|default:0 }}%"></div>
   </div>
 
+  <!-- Footer with prev/next chapter buttons for touch nav -->
+  <footer class="bk-reader-footer" id="reader-footer" aria-label="Reader navigation">
+    <button class="bk-reader-btn bk-nav-footer-btn" id="footer-prev" title="Previous chapter" disabled>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <span class="bk-reader-progress-text" id="footer-loc-text">—</span>
+    <button class="bk-reader-btn bk-nav-footer-btn" id="footer-next" title="Next chapter" disabled>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </footer>
+
   <!-- Main reading area -->
   <div class="bk-reader-body">
     <!-- Sidebar: TOC / Bookmarks / Highlights -->
@@ -115,6 +126,12 @@
       <div id="reader-loading" class="bk-reader-loading">
         <div class="bk-spinner"></div>
         <p>Loading book…</p>
+      </div>
+      <!-- Tap / swipe zones — overlay on top of content, pointer-events handled per zone -->
+      <div class="bk-tap-zones" id="tap-zones">
+        <div class="bk-tap-zone bk-tap-zone-left"  id="zone-prev"  aria-label="Previous page"></div>
+        <div class="bk-tap-zone bk-tap-zone-center" id="zone-center" aria-label="Toggle chrome"></div>
+        <div class="bk-tap-zone bk-tap-zone-right" id="zone-next"  aria-label="Next page"></div>
       </div>
       <!-- Native EPUB: extracted chapter HTML rendered directly -->
       <div id="native-epub-viewer" hidden>
