@@ -1,5 +1,12 @@
 # django-bookkeeper
 
+[![PyPI version](https://img.shields.io/pypi/v/django-bookkeeper)](https://pypi.org/project/django-bookkeeper/)
+[![Python versions](https://img.shields.io/pypi/pyversions/django-bookkeeper)](https://pypi.org/project/django-bookkeeper/)
+[![Django versions](https://img.shields.io/badge/Django-4.2%2C%205.0%2C%205.1-blue)](https://www.djangoproject.com/)
+[![CI](https://img.shields.io/github/actions/workflow/status/ehwio/django-bookkeeper/ci.yml?branch=develop)](https://github.com/ehwio/django-bookkeeper/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/ehwio/django-bookkeeper)](LICENSE)
+[![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-ff4028)](https://github.com/astral-sh/ruff)
+
 A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ).
 
 ## Features
