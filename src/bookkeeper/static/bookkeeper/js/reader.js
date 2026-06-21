@@ -698,6 +698,7 @@
     // ── Pinch-to-zoom + double-tap (PDF) ─────────────────────────
     let pdfLastTouches = null;
     let pdfGestureActive = false;
+    let pdfLastTap = null;
 
     viewer.addEventListener('touchmove', e => {
       if (e.touches.length === 2) {
