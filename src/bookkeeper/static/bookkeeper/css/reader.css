@@ -365,9 +365,6 @@ body:has(#bk-reader) .bk-main {
   margin: 0 auto;
   padding: 2.5rem 2rem 4rem;
   line-height: 1.8;
-  /* Suppress iOS native text-selection callout so our toolbar isn't covered.
-     A "›" button in the toolbar restores it on demand. */
-  -webkit-touch-callout: none;
 }
 #bk-chapter-content p       { margin: 0 0 1em; }
 #bk-chapter-content h1,
@@ -661,30 +658,101 @@ input[type="range"] {
 }
 .bk-hl-snippet:hover { background: var(--rd-sidebar-bg, #f3f4f6); }
 
-/* "›" system-menu button — only shown on touch screens (where iOS callout matters) */
-#hl-ios-more {
+/* ── Fixed bottom selection bar (touch devices) ──────────────────────
+   On touch screens the floating highlight menu would be obscured by the
+   iOS/Android native text-selection callout. Instead we slide up a sheet
+   from the bottom of the viewport where system UI never intrudes.
+   ------------------------------------------------------------------ */
+#selection-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 700;
+  background: var(--rd-surface);
+  border-top: 1px solid var(--rd-border);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -6px 32px rgba(0, 0, 0, .14);
+  padding: .5rem 1.25rem calc(.9rem + env(safe-area-inset-bottom, 0px));
+
+  /* Off-screen by default; animate in when .is-visible is added */
+  transform: translateY(100%);
+  opacity: 0;
+  /* Spring easing: slight overshoot then settle */
+  transition: transform .34s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity   .18s ease;
+
+  /* Only rendered on touch devices */
   display: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--rd-muted);
-  padding: .1rem .3rem;
-  border-radius: 4px;
-  margin-left: .1rem;
-  line-height: 1;
+  pointer-events: none;
 }
-#hl-ios-more:hover { background: var(--rd-sidebar-bg, #f3f4f6); }
+
 @media (pointer: coarse) {
-  #hl-ios-more {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 44px;
-    min-height: 44px;
-    font-size: 1.3rem;
+  #selection-bar {
+    display: block;
   }
+  /* Floating menu is redundant on touch — hide it */
+  .bk-highlight-menu {
+    display: none !important;
+  }
+}
+
+#selection-bar.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Drag-handle pill */
+.bk-sel-bar-handle {
+  width: 38px;
+  height: 4px;
+  background: var(--rd-border);
+  border-radius: 2px;
+  margin: 0 auto .8rem;
+}
+
+.bk-sel-bar-label {
+  font-size: .7rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--rd-muted);
+  margin-bottom: .6rem;
+  text-align: center;
+}
+
+.bk-sel-bar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+/* Colour swatches inside the bar */
+.bk-sel-bar-actions .bk-hl-color {
+  width: 38px;
+  height: 38px;
+}
+
+/* Divider between swatch group and action buttons */
+.bk-sel-bar-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--rd-border);
+  margin: 0 .2rem;
+}
+
+/* Remove / Snippet buttons inside the bar */
+.bk-sel-bar-actions .bk-hl-remove,
+.bk-sel-bar-actions .bk-hl-snippet {
+  min-width: 48px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
 }
 
 .bk-snippet-preview {

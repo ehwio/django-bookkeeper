@@ -355,67 +355,82 @@
     el('bm-note').value  = '';
   });
 
-  // ── Highlight menu ────────────────────────────────────────────
-  const hlMenu = el('highlight-menu');
+  // ── Highlight menu (desktop) + bottom selection bar (touch) ──────
+  const hlMenu  = el('highlight-menu');
+  const selBar  = el('selection-bar');
+  const isTouch = window.matchMedia('(pointer: coarse)').matches;
   let pendingSelection = null;
 
   function showHighlightMenu(rect, selData) {
     pendingSelection = selData;
-    // Centre the menu on the selection horizontally; prefer above, fall back below
-    const menuH = 60;
-    const cx = rect.left + rect.width / 2;
-    const top = rect.top > menuH + 8 ? rect.top - menuH - 8 : rect.bottom + 8;
-    hlMenu.style.left = cx + 'px';
-    hlMenu.style.top  = top + 'px';
-    hlMenu.removeAttribute('hidden');
+    if (isTouch) {
+      selBar.classList.add('is-visible');
+    } else {
+      // Float the menu above (or below) the selection midpoint
+      const menuH = 60;
+      const cx  = rect.left + rect.width / 2;
+      const top = rect.top > menuH + 8 ? rect.top - menuH - 8 : rect.bottom + 8;
+      hlMenu.style.left = cx + 'px';
+      hlMenu.style.top  = top + 'px';
+      hlMenu.removeAttribute('hidden');
+    }
   }
+
   function hideHighlightMenu() {
     hlMenu.setAttribute('hidden', '');
+    selBar.classList.remove('is-visible');
     pendingSelection = null;
   }
 
-  // Dismiss on mousedown (desktop) or touchstart (mobile) outside the menu
+  // Dismiss on outside mousedown (desktop) or touchstart (mobile)
   document.addEventListener('mousedown', e => {
     if (!hlMenu.contains(e.target)) hideHighlightMenu();
   });
   document.addEventListener('touchstart', e => {
-    if (!hlMenu.contains(e.target)) hideHighlightMenu();
+    if (!hlMenu.contains(e.target) && !selBar.contains(e.target)) hideHighlightMenu();
   }, { passive: true });
 
-  hlMenu.querySelectorAll('.bk-hl-color').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!pendingSelection) return;
-      const color = btn.dataset.color;
-      const result = await apiPost(URL_HL_CREATE, { ...pendingSelection, color });
-      if (result.ok) {
-        pendingSelection.id = result.id;
-        allHighlights.push({
-          id: result.id,
-          start_position: pendingSelection.start_position,
-          end_position: pendingSelection.end_position,
-          color,
-          note: '',
-          page_number: pendingSelection.page_number,
-        });
-        populateSidebarHighlights();
-      }
-      applyHighlight(pendingSelection.start_position, color);
-      window.getSelection()?.removeAllRanges();
-      hideHighlightMenu();
-    });
-  });
-  el('hl-remove').addEventListener('click', async () => {
+  // Shared handler logic — wired to both the floating menu and the bottom bar
+  async function applyHighlightColor(color) {
+    if (!pendingSelection) return;
+    const result = await apiPost(URL_HL_CREATE, { ...pendingSelection, color });
+    if (result.ok) {
+      pendingSelection.id = result.id;
+      allHighlights.push({
+        id: result.id,
+        start_position: pendingSelection.start_position,
+        end_position:   pendingSelection.end_position,
+        color,
+        note: '',
+        page_number: pendingSelection.page_number,
+      });
+      populateSidebarHighlights();
+    }
+    applyHighlight(pendingSelection.start_position, color);
+    window.getSelection()?.removeAllRanges();
+    hideHighlightMenu();
+  }
+
+  async function removeHighlightAction() {
     if (pendingSelection?.id) {
       await apiPost(`${URL_HL_CREATE}${pendingSelection.id}/delete/`);
     }
     window.getSelection()?.removeAllRanges();
     hideHighlightMenu();
-  });
+  }
+
+  // Colour swatches — both menus share the same .bk-hl-color class
+  document.querySelectorAll('#highlight-menu .bk-hl-color, #selection-bar .bk-hl-color')
+    .forEach(btn => btn.addEventListener('click', () => applyHighlightColor(btn.dataset.color)));
+
+  // Remove-highlight buttons (floating menu + bottom bar)
+  el('hl-remove').addEventListener('click', removeHighlightAction);
+  el('sb-remove').addEventListener('click', removeHighlightAction);
 
   // ── Snippet dialog ────────────────────────────────────────────
   let pendingSnippetData = null;
 
-  el('hl-snippet').addEventListener('click', () => {
+  function openSnippetDialog() {
     if (!pendingSelection) return;
     pendingSnippetData = { ...pendingSelection };
     el('sn-preview').textContent = pendingSelection.text || window.getSelection().toString();
@@ -424,36 +439,10 @@
     el('snippet-modal').removeAttribute('hidden');
     el('sn-title').focus();
     hideHighlightMenu();
-  });
-  // "›" button — restore native iOS callout so the system menu (Copy/Translate/…) appears.
-  // -webkit-touch-callout: none is set on #bk-chapter-content to keep our toolbar visible;
-  // tapping "›" lifts that suppression, re-applies the current selection, and lets iOS
-  // show its own callout.  The suppression is restored once the selection clears.
-  el('hl-ios-more').addEventListener('click', e => {
-    e.stopPropagation();
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) return;
-    const savedRange = sel.getRangeAt(0).cloneRange();
-    const contentEl = el('bk-chapter-content');
+  }
 
-    // Lift suppression and hide our menu without clearing the selection
-    contentEl.style.webkitTouchCallout = 'default';
-    hlMenu.setAttribute('hidden', '');
-    pendingSelection = null;
-
-    // Re-apply the range — triggers iOS to re-evaluate whether to show its callout
-    sel.removeAllRanges();
-    sel.addRange(savedRange);
-
-    // Restore suppression once the user dismisses the system callout (selection gone)
-    const onSelChange = () => {
-      if (!window.getSelection()?.toString()) {
-        contentEl.style.webkitTouchCallout = '';
-        document.removeEventListener('selectionchange', onSelChange);
-      }
-    };
-    document.addEventListener('selectionchange', onSelChange);
-  });
+  el('hl-snippet').addEventListener('click', openSnippetDialog);
+  el('sb-snippet').addEventListener('click', openSnippetDialog);
 
   el('sn-cancel').addEventListener('click', () => el('snippet-modal').setAttribute('hidden', ''));
   el('snippet-modal').querySelector('.bk-modal-close').addEventListener('click',
