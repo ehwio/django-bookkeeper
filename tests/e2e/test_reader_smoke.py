@@ -49,20 +49,31 @@ def test_highlight_flow(logged_in_page, e2e_book, live_server):
 
     # Select the first paragraph text via JS (programmatic selection is
     # more reliable than mouse-drag across browsers in CI)
-    page.evaluate("""() => {
+    # Make the selection and wait for the menu to appear entirely inside the
+    # browser context so no Python/Playwright round-trip can clear the
+    # selection between the event dispatch and the 300ms debounce firing.
+    appeared = page.evaluate("""async () => {
+        const menu = document.getElementById('highlight-menu');
         const p = document.querySelector('#bk-chapter-content p');
-        if (!p) return;
-        const range = document.createRange();
-        range.selectNodeContents(p);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-        // The handler listens on document; firing here triggers the 300ms debounce.
-        document.dispatchEvent(new Event('selectionchange'));
-    }""")
+        if (!p) return false;
 
-    # 300ms debounce + render; 3s is generous
-    page.wait_for_selector("#highlight-menu:not([hidden])", timeout=3_000)
+        await new Promise((resolve, reject) => {
+            const observer = new MutationObserver(() => {
+                if (!menu.hidden) { observer.disconnect(); resolve(); }
+            });
+            observer.observe(menu, { attributes: true, attributeFilter: ['hidden'] });
+            setTimeout(() => { observer.disconnect(); reject(new Error('timeout')); }, 3000);
+
+            const range = document.createRange();
+            range.selectNodeContents(p);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            document.dispatchEvent(new Event('selectionchange'));
+        });
+        return !menu.hidden;
+    }""")
+    assert appeared, "highlight menu did not appear after text selection"
     assert page.is_visible("#highlight-menu")
 
     # Click the yellow swatch — dispatch directly to avoid the mousedown
