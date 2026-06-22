@@ -6,11 +6,49 @@
 body:has(#bk-reader) {
   overflow: hidden;
   height: 100vh;
+  height: 100dvh;
 }
 body:has(#bk-reader) .bk-main {
   padding: 0;
   max-width: none;
   margin: 0;
+}
+
+/* ── Tap / swipe overlay ─────────────────────────────────── */
+/* Invisible tap zones over the reader viewport */
+.bk-tap-zones {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  pointer-events: none;
+}
+.bk-tap-zone {
+  /* Fully inert — tap detection is done via touchend coordinates, not hit-testing */
+  pointer-events: none;
+}
+.bk-tap-zone-left  { width: 25%; }
+.bk-tap-zone-center { flex: 1; }
+.bk-tap-zone-right { width: 25%; }
+
+/* ── Chrome auto-hide ─────────────────────────────────────── */
+/* Header/footer slide up/down with transition */
+#bk-reader:not(.chrome-hidden) .bk-reader-header,
+#bk-reader:not(.chrome-hidden) .bk-reader-footer {
+  transition: transform .25s ease, opacity .25s ease;
+}
+#bk-reader.chrome-hidden .bk-reader-header {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+#bk-reader.chrome-hidden .bk-reader-footer {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+#bk-reader.chrome-hidden .bk-tap-zones {
+  cursor: default;
 }
 
 /* Theme variables injected by JS onto #bk-reader */
@@ -43,6 +81,7 @@ body:has(#bk-reader) .bk-main {
   display: flex;
   flex-direction: column;
   height: calc(100vh - var(--bk-header-h));
+  height: calc(100dvh - var(--bk-header-h));
   background: var(--rd-bg);
   color: var(--rd-text);
   --rd-bg: #faf9f7;
@@ -60,7 +99,15 @@ body:has(#bk-reader) .bk-main {
 :fullscreen #bk-reader,
 :-webkit-full-screen #bk-reader {
   height: 100vh;
+  height: 100dvh;
   background: var(--rd-bg);
+}
+
+/* dvh override: fixes iOS Safari dynamic viewport (browser bar shrinks/grows) */
+@supports (height: 100dvh) {
+  body:has(#bk-reader) { height: 100dvh; }
+  #bk-reader { height: calc(100dvh - var(--bk-header-h)); }
+  :fullscreen #bk-reader, :-webkit-full-screen #bk-reader { height: 100dvh; }
 }
 
 /* ── Reader header ───────────────────────────────────────────── */
@@ -68,12 +115,13 @@ body:has(#bk-reader) .bk-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1rem;
-  height: 48px;
+  padding: 0 .5rem;
+  height: 52px;
   background: var(--rd-header);
   border-bottom: 1px solid var(--rd-border);
   flex-shrink: 0;
-  gap: .5rem;
+  gap: .25rem;
+  overflow: hidden;
 }
 .bk-reader-header-left  { display: flex; align-items: center; gap: .75rem; min-width: 0; }
 .bk-reader-header-center { flex: 1; text-align: center; }
@@ -118,10 +166,20 @@ body:has(#bk-reader) .bk-main {
   font-family: inherit;
   font-weight: 600;
   transition: background .15s, color .15s;
+  min-width: 44px;
+  min-height: 44px;
 }
 .bk-reader-btn:hover, .bk-reader-btn.active {
   background: var(--rd-border);
   color: var(--rd-text);
+}
+
+/* Mobile: hide less-critical toolbar buttons; fullscreen lives in settings panel */
+@media (max-width: 639px) {
+  #btn-fit-width,
+  #btn-fullscreen {
+    display: none;
+  }
 }
 
 /* Progress strip */
@@ -135,6 +193,24 @@ body:has(#bk-reader) .bk-main {
   background: var(--bk-accent, #7c3aed);
   transition: width .4s;
 }
+
+/* ── Reader footer ──────────────────────────────────────────── */
+.bk-reader-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem 1rem;
+  height: 52px;
+  background: var(--rd-header);
+  border-top: 1px solid var(--rd-border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+.bk-nav-footer-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+#footer-loc-text { font-size: .8rem; color: var(--rd-muted); }
 
 /* ── Reader body ─────────────────────────────────────────────── */
 .bk-reader-body {
@@ -280,6 +356,9 @@ body:has(#bk-reader) .bk-main {
   min-height: 0; /* required: allows scroll within constrained flex height */
   overflow-y: auto;
   background: var(--rd-surface);
+  /* iOS: let the browser scroll this element natively; contain bounce within it */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 #bk-chapter-content {
   max-width: 680px;
@@ -415,8 +494,65 @@ body:has(#bk-reader) .bk-main {
 }
 .bk-settings-panel[hidden] { display: none; }
 .bk-settings-panel h3 { font-size: .9rem; font-weight: 700; }
+.bk-settings-fullscreen { margin-top: .5rem; }
+#btn-fullscreen-settings {
+  width: 100%;
+  justify-content: flex-start;
+  gap: .5rem;
+  color: var(--rd-text);
+  font-weight: 500;
+  font-size: .875rem;
+}
 .bk-settings-panel label { font-size: .8rem; font-weight: 500; color: var(--rd-muted); }
 .bk-settings-panel .bk-select { width: 100%; }
+
+/* Mobile: bottom sheet */
+@media (max-width: 639px) {
+  .bk-settings-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 75vh;
+    border-left: none;
+    border-top: 1px solid var(--rd-border);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,.15);
+    z-index: 200;
+    transform: translateY(100%);
+    transition: transform .3s ease;
+    padding-top: 1.5rem;
+  }
+  .bk-settings-panel::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--rd-border);
+    border-radius: 2px;
+    margin: -1rem auto .75rem;
+  }
+  .bk-settings-panel:not([hidden]) {
+    transform: translateY(0);
+    display: flex;
+  }
+  /* Backdrop */
+  .bk-settings-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 199;
+    opacity: 0;
+    transition: opacity .3s ease;
+    pointer-events: none;
+  }
+  .bk-settings-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
 
 .bk-theme-btns { display: flex; gap: .4rem; flex-wrap: wrap; }
 .bk-theme-btn {
@@ -461,6 +597,9 @@ input[type="range"] {
   border-radius: 99px;
   padding: .35rem .6rem;
   box-shadow: var(--bk-shadow-md);
+  /* Keep menu within viewport */
+  max-width: calc(100vw - 1rem);
+  transform: translateX(-50%);
 }
 .bk-highlight-menu[hidden] { display: none; }
 
@@ -473,6 +612,27 @@ input[type="range"] {
   transition: border-color .15s, transform .15s;
 }
 .bk-hl-color:hover { border-color: #555; transform: scale(1.15); }
+
+/* Larger touch targets on touch devices */
+@media (pointer: coarse) {
+  .bk-highlight-menu {
+    padding: .5rem .75rem;
+    gap: .5rem;
+  }
+  .bk-hl-color {
+    width: 36px;
+    height: 36px;
+  }
+  .bk-hl-remove,
+  .bk-hl-snippet {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+  }
+}
 
 .bk-hl-remove {
   background: none;

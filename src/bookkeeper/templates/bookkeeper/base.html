@@ -3,8 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Bookkeeper{% endblock %}</title>
   {% load static %}
+  <meta name="theme-color" content="#7c3aed">
+  <meta name="description" content="Bookkeeper — your personal e-Book library">
+  <!-- PWA / Add to Home Screen -->
+  <link rel="manifest" href="{% url 'bookkeeper:manifest' %}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Bookkeeper">
+  <link rel="apple-touch-icon" href="{% static 'bookkeeper/icon-192.png' %}">
+  <title>{% block title %}Bookkeeper{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'bookkeeper/css/bookkeeper.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
@@ -55,7 +63,7 @@
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
-          <p>Drag &amp; drop your book here, or <label for="file-input" class="bk-link">browse</label></p>
+          <p id="drop-zone-label">Drag &amp; drop your book here, or <label for="file-input" class="bk-link">browse</label></p>
           <p class="bk-muted">PDF, EPUB, CBZ, CBR — up to 500 MB</p>
           <input type="file" id="file-input" name="file" accept=".pdf,.epub,.cbz,.cbr" hidden>
         </div>

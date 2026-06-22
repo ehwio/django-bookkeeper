@@ -40,11 +40,18 @@ const BK = (() => {
     uploadError    = document.getElementById('upload-error');
     uploadSubmit   = document.getElementById('upload-submit');
     const form     = document.getElementById('upload-form');
+    const label    = document.getElementById('drop-zone-label');
 
     document.getElementById('upload-trigger')?.addEventListener('click', openUpload);
     uploadModal.querySelector('.bk-modal-close')?.addEventListener('click', closeUpload);
     uploadModal.querySelector('.bk-modal-backdrop')?.addEventListener('click', closeUpload);
     document.getElementById('upload-cancel')?.addEventListener('click', closeUpload);
+
+    // On touch devices, update the drop zone label to make it clear the file picker is the primary action
+    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+    if (isTouchDevice && label) {
+      label.innerHTML = '<label for="file-input" class="bk-link">Tap to choose a file</label>';
+    }
 
     // File picker via drop zone click. The "browse" text is itself a
     // <label for="file-input">, which already opens the picker natively —
@@ -58,20 +65,22 @@ const BK = (() => {
       if (fileInput.files[0]) onFileSelected(fileInput.files[0]);
     });
 
-    // Drag-and-drop
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.classList.remove('dragover');
-      const f = e.dataTransfer.files[0];
-      if (!f) return;
-      // Put the dropped file into the actual input so FormData picks it up
-      const dt = new DataTransfer();
-      dt.items.add(f);
-      fileInput.files = dt.files;
-      onFileSelected(f);
-    });
+    // Drag-and-drop (desktop only — touch devices use the file picker)
+    if (!isTouchDevice) {
+      dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+      dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const f = e.dataTransfer.files[0];
+        if (!f) return;
+        // Put the dropped file into the actual input so FormData picks it up
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        fileInput.files = dt.files;
+        onFileSelected(f);
+      });
+    }
 
     function onFileSelected(file) {
       const allowed = ['.pdf', '.epub', '.cbz', '.cbr'];

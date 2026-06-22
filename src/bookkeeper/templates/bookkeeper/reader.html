@@ -94,6 +94,17 @@
          style="width: {{ progress.percentage|default:0 }}%"></div>
   </div>
 
+  <!-- Footer with prev/next chapter buttons for touch nav -->
+  <footer class="bk-reader-footer" id="reader-footer" aria-label="Reader navigation">
+    <button class="bk-reader-btn bk-nav-footer-btn" id="footer-prev" title="Previous chapter" disabled>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <span class="bk-reader-progress-text" id="footer-loc-text">—</span>
+    <button class="bk-reader-btn bk-nav-footer-btn" id="footer-next" title="Next chapter" disabled>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </footer>
+
   <!-- Main reading area -->
   <div class="bk-reader-body">
     <!-- Sidebar: TOC / Bookmarks / Highlights -->
@@ -115,6 +126,12 @@
       <div id="reader-loading" class="bk-reader-loading">
         <div class="bk-spinner"></div>
         <p>Loading book…</p>
+      </div>
+      <!-- Tap / swipe zones — overlay on top of content, pointer-events handled per zone -->
+      <div class="bk-tap-zones" id="tap-zones">
+        <div class="bk-tap-zone bk-tap-zone-left"  id="zone-prev"  aria-label="Previous page"></div>
+        <div class="bk-tap-zone bk-tap-zone-center" id="zone-center" aria-label="Toggle chrome"></div>
+        <div class="bk-tap-zone bk-tap-zone-right" id="zone-next"  aria-label="Next page"></div>
       </div>
       <!-- Native EPUB: extracted chapter HTML rendered directly -->
       <div id="native-epub-viewer" hidden>
@@ -152,6 +169,8 @@
       <div id="cbr-viewer" hidden></div>
     </div>
 
+    <!-- Settings backdrop (mobile bottom sheet only) -->
+    <div class="bk-settings-backdrop" id="settings-backdrop"></div>
     <!-- Settings panel -->
     <aside class="bk-settings-panel" id="settings-panel" hidden>
       <h3>Reader Settings</h3>
@@ -188,6 +207,19 @@
         <button class="bk-theme-btn" data-width="narrow">Narrow</button>
         <button class="bk-theme-btn" data-width="normal">Normal</button>
         <button class="bk-theme-btn" data-width="wide">Wide</button>
+      </div>
+
+      <!-- Fullscreen: shown only on mobile (hidden in toolbar on small screens) -->
+      <div class="bk-settings-fullscreen" id="settings-fullscreen-btn">
+        <button class="bk-reader-btn bk-btn-block" id="btn-fullscreen-settings">
+          <svg id="icon-fs-enter" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+          <svg id="icon-fs-exit" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" hidden>
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+          </svg>
+          <span id="fs-label">Enter fullscreen</span>
+        </button>
       </div>
     </aside>
   </div>

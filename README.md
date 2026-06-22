@@ -28,6 +28,7 @@ A Django app for storing, cataloguing, and reading e-Books (PDF, EPUB, CBZ).
 - **5-star ratings** per user
 - **Favourites** and finished-book tracking
 - **Extensible hook signals** for recent-books lists, activity feeds, etc.
+- **PWA-installable** — add to your home screen on iOS and Android for a full-screen, standalone reading app
 - Django best-practices: `django-storages` compatible, `AUTH_USER_MODEL` aware, namespaced URLs
 
 ## Screenshots
@@ -79,6 +80,12 @@ The demo ships with:
 
 > Books are downloaded from [Project Gutenberg](https://www.gutenberg.org/) on first run.
 > They are public domain and freely distributable.
+
+## Progressive Web App (PWA)
+
+Bookkeeper can be installed on your device's home screen for a full-screen, app-like experience with no browser chrome. On supported browsers, look for the **Share → Add to Home Screen** (iOS) or **Install app** option.
+
+This requires no service worker — the manifest and meta tags enable the A2HS flow; offline reading is a future enhancement.
 
 ---
 

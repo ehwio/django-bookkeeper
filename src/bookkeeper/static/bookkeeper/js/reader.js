@@ -121,22 +121,46 @@
   }
 
   // Settings panel wiring
+  const _settingsPanel = el('settings-panel');
+  const _settingsBackdrop = el('settings-backdrop');
+
+  function openSettings() {
+    _settingsPanel.removeAttribute('hidden');
+    _settingsBackdrop?.classList.add('visible');
+    el('btn-settings').classList.add('active');
+  }
+  function closeSettings() {
+    _settingsPanel.setAttribute('hidden', '');
+    _settingsBackdrop?.classList.remove('visible');
+    el('btn-settings').classList.remove('active');
+  }
+
   el('btn-settings').addEventListener('click', () => {
-    const panel = el('settings-panel');
-    panel.toggleAttribute('hidden');
-    el('btn-settings').classList.toggle('active', !panel.hidden);
+    if (_settingsPanel.hidden) openSettings(); else closeSettings();
   });
+  _settingsBackdrop?.addEventListener('click', closeSettings);
 
   // ── Fullscreen toggle ────────────────────────────────────────
   const btnFullscreen = el('btn-fullscreen');
   const iconEnter = el('icon-fullscreen-enter');
   const iconExit  = el('icon-fullscreen-exit');
+  const btnFsSettings = el('btn-fullscreen-settings');
+  const iconFsEnter   = document.getElementById('icon-fs-enter');
+  const iconFsExit    = document.getElementById('icon-fs-exit');
+  const fsLabel       = document.getElementById('fs-label');
 
   function syncFullscreenIcons() {
     const isFS = !!document.fullscreenElement;
     iconEnter.hidden = isFS;
     iconExit.hidden  = !isFS;
     btnFullscreen.classList.toggle('active', isFS);
+    // Also sync the settings-panel fullscreen button (shown on mobile)
+    if (btnFsSettings) {
+      btnFsSettings.classList.toggle('active', isFS);
+      if (iconFsEnter) iconFsEnter.hidden = isFS;
+      if (iconFsExit)  iconFsExit.hidden  = !isFS;
+      if (fsLabel) fsLabel.textContent = isFS ? 'Exit fullscreen' : 'Enter fullscreen';
+    }
   }
 
   el('btn-fit-width').addEventListener('click', () => {
@@ -146,6 +170,14 @@
   });
 
   btnFullscreen.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch (_) { /* embedded contexts may reject */ }
+  });
+
+  // Settings panel fullscreen button (mobile only)
+  btnFsSettings?.addEventListener('click', async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
       else await document.documentElement.requestFullscreen();
@@ -327,10 +359,14 @@
   const hlMenu = el('highlight-menu');
   let pendingSelection = null;
 
-  function showHighlightMenu(x, y, selData) {
+  function showHighlightMenu(rect, selData) {
     pendingSelection = selData;
-    hlMenu.style.left = x + 'px';
-    hlMenu.style.top  = (y - 48) + 'px';
+    // Centre the menu on the selection horizontally; prefer above, fall back below
+    const menuH = 60;
+    const cx = rect.left + rect.width / 2;
+    const top = rect.top > menuH + 8 ? rect.top - menuH - 8 : rect.bottom + 8;
+    hlMenu.style.left = cx + 'px';
+    hlMenu.style.top  = top + 'px';
     hlMenu.removeAttribute('hidden');
   }
   function hideHighlightMenu() {
@@ -338,9 +374,13 @@
     pendingSelection = null;
   }
 
+  // Dismiss on mousedown (desktop) or touchstart (mobile) outside the menu
   document.addEventListener('mousedown', e => {
     if (!hlMenu.contains(e.target)) hideHighlightMenu();
   });
+  document.addEventListener('touchstart', e => {
+    if (!hlMenu.contains(e.target)) hideHighlightMenu();
+  }, { passive: true });
 
   hlMenu.querySelectorAll('.bk-hl-color').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -360,6 +400,7 @@
         populateSidebarHighlights();
       }
       applyHighlight(pendingSelection.start_position, color);
+      window.getSelection()?.removeAllRanges();
       hideHighlightMenu();
     });
   });
@@ -367,6 +408,7 @@
     if (pendingSelection?.id) {
       await apiPost(`${URL_HL_CREATE}${pendingSelection.id}/delete/`);
     }
+    window.getSelection()?.removeAllRanges();
     hideHighlightMenu();
   });
 
@@ -676,6 +718,51 @@
       renderPage(currentPage);
     });
 
+    // ── Pinch-to-zoom + double-tap (PDF) ─────────────────────────
+    let pdfLastTouches = null;
+    let pdfGestureActive = false;
+    let pdfLastTap = null;
+
+    viewer.addEventListener('touchmove', e => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pdfGestureActive = true;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        if (pdfLastTouches) {
+          const ratio = dist / pdfLastTouches.dist;
+          pdfZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pdfZoom * ratio));
+          updateZoomLabel();
+          el('pdf-zoom-in').disabled  = pdfZoom >= ZOOM_MAX;
+          el('pdf-zoom-out').disabled = pdfZoom <= ZOOM_MIN;
+          el('pdf-canvas-wrap').style.transform = `scale(${pdfZoom})`;
+          el('pdf-canvas-wrap').style.transformOrigin = 'top center';
+        }
+        pdfLastTouches = { dist };
+      }
+    }, { passive: false });
+
+    viewer.addEventListener('touchend', e => {
+      if (pdfGestureActive) {
+        pdfGestureActive = false;
+        pdfLastTouches = null;
+        el('pdf-canvas-wrap').style.transform = '';
+        el('pdf-canvas-wrap').style.transformOrigin = '';
+        renderPage(currentPage);
+      } else if (e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (pdfLastTap && now - pdfLastTap < 300) {
+          pdfZoom = pdfZoom > 1.05 ? 1.0 : 2.0;
+          updateZoomLabel();
+          renderPage(currentPage);
+          pdfLastTap = null;
+        } else {
+          pdfLastTap = now;
+        }
+      }
+    });
+
     const pdfResizeObs = new ResizeObserver(() => renderPage(currentPage));
     pdfResizeObs.observe(viewer);
 
@@ -794,6 +881,46 @@
       applyZoom();
     });
 
+    // ── Pinch-to-zoom + double-tap (CBZ) ────────────────────────
+    let cbzLastTouches = null;
+    let cbzGestureActive = false;
+    let cbzLastTap = null;
+
+    viewer.addEventListener('touchmove', e => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        cbzGestureActive = true;
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY,
+        );
+        if (cbzLastTouches) {
+          const ratio = dist / cbzLastTouches.dist;
+          cbzZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cbzZoom * ratio));
+          applyZoom();
+          el('cbz-zoom-in').disabled  = cbzZoom >= ZOOM_MAX;
+          el('cbz-zoom-out').disabled = cbzZoom <= ZOOM_MIN;
+        }
+        cbzLastTouches = { dist };
+      }
+    }, { passive: false });
+
+    viewer.addEventListener('touchend', e => {
+      if (cbzGestureActive) {
+        cbzGestureActive = false;
+        cbzLastTouches = null;
+      } else if (e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (cbzLastTap && now - cbzLastTap < 300) {
+          cbzZoom = cbzZoom > 1.05 ? 1.0 : 2.0;
+          applyZoom();
+          cbzLastTap = null;
+        } else {
+          cbzLastTap = now;
+        }
+      }
+    });
+
     document.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'ArrowRight') showPage(current + 1);
@@ -901,6 +1028,46 @@
     el('cbr-zoom-reset').addEventListener('click', () => {
       cbrZoom = 1.0;
       applyZoom();
+    });
+
+    // ── Pinch-to-zoom + double-tap (CBR) ───────────────────────
+    let cbrLastTouches = null;
+    let cbrGestureActive = false;
+    let cbrLastTap = null;
+
+    viewer.addEventListener('touchmove', e => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        cbrGestureActive = true;
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY,
+        );
+        if (cbrLastTouches) {
+          const ratio = dist / cbrLastTouches.dist;
+          cbrZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cbrZoom * ratio));
+          applyZoom();
+          el('cbr-zoom-in').disabled  = cbrZoom >= ZOOM_MAX;
+          el('cbr-zoom-out').disabled = cbrZoom <= ZOOM_MIN;
+        }
+        cbrLastTouches = { dist };
+      }
+    }, { passive: false });
+
+    viewer.addEventListener('touchend', e => {
+      if (cbrGestureActive) {
+        cbrGestureActive = false;
+        cbrLastTouches = null;
+      } else if (e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (cbrLastTap && now - cbrLastTap < 300) {
+          cbrZoom = cbrZoom > 1.05 ? 1.0 : 2.0;
+          applyZoom();
+          cbrLastTap = null;
+        } else {
+          cbrLastTap = now;
+        }
+      }
     });
 
     document.addEventListener('keydown', e => {
@@ -1072,24 +1239,33 @@
     });
 
     // ── Selection → highlight menu ────────────────────────────────
-    document.addEventListener('mouseup', () => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) return;
-      const selStr = sel.toString();
-      const text   = selStr.trim();
-      if (!text || !content.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
-      const range    = sel.getRangeAt(0);
-      const startOff = charOffsetAt(content, range.startContainer, range.startOffset);
-      // Triple-click puts range end at offset 0 of the next block element.
-      // Use selection string length to stay within the actual selected text.
-      const endOff   = startOff + selStr.length;
-      const rect     = range.getBoundingClientRect();
-      showHighlightMenu(rect.right, rect.bottom, {
-        start_position: `${currentIndex}:${startOff}`,
-        end_position:   `${currentIndex}:${endOff}`,
-        text,
-        page_number: currentIndex + 1,
-      });
+    // selectionchange fires on both desktop (mouseup) and mobile (after
+    // the user drags the native iOS/Android selection handles).
+    let selChangeTimer = null;
+    document.addEventListener('selectionchange', () => {
+      clearTimeout(selChangeTimer);
+      selChangeTimer = setTimeout(() => {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed || !sel.rangeCount) {
+          // Selection cleared — hide menu unless user tapped a menu button
+          return;
+        }
+        const selStr = sel.toString();
+        const text   = selStr.trim();
+        const range  = sel.getRangeAt(0);
+        if (!text || !content.contains(range.commonAncestorContainer)) return;
+        const startOff = charOffsetAt(content, range.startContainer, range.startOffset);
+        // Triple-click puts range end at offset 0 of the next block element.
+        // Use selection string length to stay within the actual selected text.
+        const endOff = startOff + selStr.length;
+        const rect   = range.getBoundingClientRect();
+        showHighlightMenu(rect, {
+          start_position: `${currentIndex}:${startOff}`,
+          end_position:   `${currentIndex}:${endOff}`,
+          text,
+          page_number: currentIndex + 1,
+        });
+      }, 300);
     });
 
     // Wire the outer applyHighlight stub to repaint this chapter
@@ -1097,10 +1273,16 @@
 
     // ── Navigation ────────────────────────────────────────────────
     prevBtn.addEventListener('click', () => {
-      if (currentIndex > 0) loadChapter(currentIndex - 1);
+      if (currentIndex > 0) {
+        loadChapter(currentIndex - 1);
+        window.__bkSetNavState?.(currentIndex - 1 > 0, currentIndex < chapterCount - 1, `Ch. ${currentIndex} / ${chapterCount}`);
+      }
     });
     nextBtn.addEventListener('click', () => {
-      if (currentIndex < chapterCount - 1) loadChapter(currentIndex + 1);
+      if (currentIndex < chapterCount - 1) {
+        loadChapter(currentIndex + 1);
+        window.__bkSetNavState?.(true, currentIndex + 1 < chapterCount - 1, `Ch. ${currentIndex + 2} / ${chapterCount}`);
+      }
     });
 
     document.addEventListener('keydown', e => {
@@ -1128,6 +1310,142 @@
       initCharOffset = parseInt(initPos.split(':')[1], 10) || 0;
     }
     await loadChapter(initChapter, initCharOffset);
+    window.__bkSetNavState?.(initChapter > 0, initChapter < chapterCount - 1, `Ch. ${initChapter + 1} / ${chapterCount}`);
     hideLoading();
   }
+
+  // ==============================================================
+  // Touch swipe & tap zones
+  // ==============================================================
+  function initSwipeGestures() {
+    const zonePrev   = el('zone-prev');
+    const zoneNext   = el('zone-next');
+    const zoneCenter = el('zone-center');
+    const footerPrev = el('footer-prev');
+    const footerNext = el('footer-next');
+    const footerLoc  = el('footer-loc-text');
+
+    if (!zonePrev || !zoneNext || !zoneCenter) return;
+
+    const SWIPE_THRESHOLD = 50;
+    const TAP_MAX_DIST = 12;
+    const TAP_MAX_MS   = 300;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartT = 0;
+    let chromeTimer = null;
+    let chromeVisible = true;
+
+    // ── Helpers ─────────────────────────────────────────────────
+    function showChrome() {
+      reader.classList.remove('chrome-hidden');
+      chromeVisible = true;
+      scheduleHideChrome();
+    }
+
+    function hideChrome() {
+      reader.classList.add('chrome-hidden');
+      chromeVisible = false;
+    }
+
+    function scheduleHideChrome() {
+      clearTimeout(chromeTimer);
+      chromeTimer = setTimeout(hideChrome, 3000);
+    }
+
+    function chromeIsVisible() {
+      return !reader.classList.contains('chrome-hidden');
+    }
+
+    function tapCenter() {
+      if (chromeIsVisible()) {
+        hideChrome();
+        clearTimeout(chromeTimer);
+      } else {
+        showChrome();
+      }
+    }
+
+    // ── Prev/next actions (dispatch to whichever format is active) ─
+    function doPrev() {
+      // Native EPUB chapter nav
+      const nativeBtn = el('native-prev') || el('cbz-prev') || el('cbr-prev');
+      if (nativeBtn) { nativeBtn.click(); return; }
+      // PDF fallback
+      const cur = parseInt(el('pdf-page-input')?.value, 10) || 1;
+      if (cur > 1) renderPage?.(cur - 1);
+    }
+
+    function doNext() {
+      // Native EPUB chapter nav
+      const nativeBtn = el('native-next') || el('cbz-next') || el('cbr-next');
+      if (nativeBtn) { nativeBtn.click(); return; }
+      // PDF fallback
+      const cur = parseInt(el('pdf-page-input')?.value, 10) || 1;
+      const tot = parseInt(el('pdf-page-count')?.textContent, 10) || 999;
+      if (cur < tot) renderPage?.(cur + 1);
+    }
+
+    // ── Touch event handlers ──────────────────────────────────────
+    function onTouchStart(e) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartT = e.timeStamp;
+    }
+
+    function onTouchEnd(e) {
+      const t  = e.changedTouches[0];
+      const dx = t.clientX - touchStartX;
+      const dy = t.clientY - touchStartY;
+      const dist = Math.hypot(dx, dy);
+      const dt   = e.timeStamp - touchStartT;
+
+      // Horizontal swipe
+      if (Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+        if (dx < 0) doNext(); else doPrev();
+        return;
+      }
+
+      // Short tap — determine zone by X coordinate
+      if (dist < TAP_MAX_DIST && dt < TAP_MAX_MS) {
+        const x = t.clientX;
+        const w = window.innerWidth;
+        if (x < w * 0.25) {
+          if (chromeIsVisible()) { doPrev(); scheduleHideChrome(); }
+        } else if (x > w * 0.75) {
+          if (chromeIsVisible()) { doNext(); scheduleHideChrome(); }
+        } else {
+          tapCenter();
+        }
+      }
+    }
+
+    // Zone divs are fully inert (pointer-events: none) — tap detection
+    // is handled above via coordinates, so no click handlers needed.
+
+    // Attach swipe to the viewport container (covers all formats)
+    const viewport = el('reader-viewport');
+    if (viewport) {
+      viewport.addEventListener('touchstart', onTouchStart, { passive: true });
+      viewport.addEventListener('touchend',   onTouchEnd,   { passive: true });
+    }
+
+    // Footer prev/next buttons also navigate
+    if (footerPrev) footerPrev.addEventListener('click', doPrev);
+    if (footerNext) footerNext.addEventListener('click', doNext);
+
+    // ── Update footer button + location text (called by format inits) ─
+    window.__bkSetNavState = (hasPrev, hasNext, label) => {
+      if (footerPrev) footerPrev.disabled = !hasPrev;
+      if (footerNext) footerNext.disabled = !hasNext;
+      if (footerLoc)  footerLoc.textContent = label || '—';
+    };
+
+    // Auto-hide chrome on touch devices only; mouse users keep it always visible
+    if (window.matchMedia('(pointer: coarse)').matches) {
+      scheduleHideChrome();
+    }
+  }
+
+  initSwipeGestures();
 })();

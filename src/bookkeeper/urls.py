@@ -1,10 +1,12 @@
 from django.urls import path
 
 from . import views
+from .manifest import manifest
 
 app_name = "bookkeeper"
 
 urlpatterns = [
+    path("manifest.json", manifest, name="manifest"),
     path("", views.LibraryView.as_view(), name="library"),
     path("upload/", views.upload_book, name="upload"),
     path("book/<slug:slug>/", views.BookDetailView.as_view(), name="book_detail"),
