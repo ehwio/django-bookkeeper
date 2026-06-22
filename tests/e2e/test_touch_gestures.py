@@ -209,8 +209,12 @@ def test_chrome_autohides_on_touch_device(mobile_page, e2e_book, live_server):
             zoneCenterExists: !!zoneCenter,
         };
     }""")
+    touch_debug = page.evaluate("window.__bk_touch_debug || null")
     print("DIAG:", diag)
-    assert diag["afterTap"], f"centre tap should hide chrome — diag: {diag}"
+    print("TOUCH_DEBUG:", touch_debug)
+    assert diag["afterTap"], (
+        f"centre tap should hide chrome — diag: {diag}, touch_debug: {touch_debug}"
+    )
 
 
 def test_centre_tap_toggles_chrome(mobile_page, e2e_book, live_server):

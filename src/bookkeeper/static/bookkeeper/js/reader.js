@@ -1400,6 +1400,9 @@
       const dist = Math.hypot(dx, dy);
       const dt   = e.timeStamp - touchStartT;
 
+      // Expose debug state for E2E tests (safe to leave in; no-op in prod)
+      window.__bk_touch_debug = { dx, dy, dist, dt, ts: e.timeStamp, startT: touchStartT };
+
       // Horizontal swipe
       if (Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
         if (dx < 0) doNext(); else doPrev();
