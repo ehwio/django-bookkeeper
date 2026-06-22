@@ -57,7 +57,7 @@ def test_highlight_flow(logged_in_page, e2e_book, live_server):
 
     # Click the yellow swatch — dispatch directly to avoid the mousedown
     # dismiss handler firing before the click lands on the menu button.
-    page.locator(".bk-hl-color[data-color='yellow']").dispatch_event("click")
+    page.locator("#highlight-menu .bk-hl-color[data-color='yellow']").dispatch_event("click")
 
     # Menu should close after saving
     page.wait_for_selector("#highlight-menu", state="hidden", timeout=5_000)
