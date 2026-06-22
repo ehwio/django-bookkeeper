@@ -1,12 +1,17 @@
 """Shared fixtures for Playwright E2E tests."""
 
 import io
+import os
 import zipfile
+
+# pytest-playwright sets up an asyncio event loop; Django blocks sync ORM
+# calls when it detects one. This env var disables that guard for tests.
+os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
 
 import pytest
 from django.contrib.auth import get_user_model
 
-from bookkeeper.models import Book, BookFormat, UserBook
+from bookkeeper.models import Book, BookFormat, Chapter, UserBook
 
 User = get_user_model()
 
@@ -126,15 +131,42 @@ def e2e_book(db, e2e_user, epub_bytes, settings):
         added_by=e2e_user,
     )
     UserBook.objects.create(user=e2e_user, book=book)
+
+    # Create a Chapter row directly — extraction normally happens at upload
+    # time but the test bypasses the upload flow.
+    chapter_html = (
+        "<h1>Chapter One</h1>"
+        "<p>This is the first paragraph of the E2E test book. "
+        "It contains enough text to make highlighting meaningful.</p>"
+        "<p>A second paragraph with more content for testing purposes.</p>"
+    )
+    Chapter.objects.create(
+        book=book,
+        spine_index=0,
+        title="Chapter 1",
+        html=chapter_html,
+        char_count=len(chapter_html),
+        content_hash=hashlib.sha256(chapter_html.encode()).hexdigest()[:16],
+    )
     return book
 
 
 @pytest.fixture()
 def logged_in_page(page, live_server, e2e_user):
-    """A Playwright page already logged in as e2e_user via the login form."""
-    page.goto(f"{live_server.url}/accounts/login/")
-    page.fill('[name="username"]', E2E_USERNAME)
-    page.fill('[name="password"]', E2E_PASSWORD)
-    page.click('[type="submit"]')
-    page.wait_for_url(f"{live_server.url}/books/")
+    """A Playwright page with a valid session cookie — no login form needed."""
+    from django.test import Client
+
+    client = Client()
+    client.login(username=E2E_USERNAME, password=E2E_PASSWORD)
+    session_cookie = client.cookies["sessionid"]
+
+    parsed = live_server.url.split("://", 1)[1]  # strip http://
+    host = parsed.split(":")[0]
+
+    page.context.add_cookies([{
+        "name": "sessionid",
+        "value": session_cookie.value,
+        "domain": host,
+        "path": "/",
+    }])
     return page
