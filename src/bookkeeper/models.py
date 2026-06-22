@@ -275,6 +275,8 @@ class ReaderSettings(models.Model):
         default="normal",
         choices=[("narrow", "Narrow"), ("normal", "Normal"), ("wide", "Wide")],
     )
+    fit_width = models.BooleanField(default=False)
+    pdf_zoom = models.FloatField(default=1.0)
 
     class Meta:
         verbose_name_plural = "reader settings"

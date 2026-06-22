@@ -17,7 +17,7 @@
      data-highlights="{{ highlights_json }}"
      data-bookmarks="{{ bookmarks_json }}"
      data-snippets="{{ snippets_json }}"
-     data-settings='{"fontSize":{{ reader_settings.font_size }},"fontFamily":"{{ reader_settings.font_family }}","lineHeight":{{ reader_settings.line_height }},"theme":"{{ reader_settings.theme }}","columnWidth":"{{ reader_settings.column_width }}"}'
+     data-settings='{"fontSize":{{ reader_settings.font_size }},"fontFamily":"{{ reader_settings.font_family }}","lineHeight":{{ reader_settings.line_height }},"theme":"{{ reader_settings.theme }}","columnWidth":"{{ reader_settings.column_width }}","fitWidth":{{ reader_settings.fit_width|yesno:'true,false' }},"pdfZoom":{{ reader_settings.pdf_zoom }}}'
      data-has-chapters="{{ has_chapters|yesno:'true,false' }}"
      data-chapter-count="{{ chapter_count }}"
      data-chapter-index="{{ initial_chapter_index }}"

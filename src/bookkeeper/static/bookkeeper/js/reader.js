@@ -97,7 +97,7 @@
     document.querySelectorAll('.bk-theme-btn[data-theme]').forEach(b =>
       b.classList.toggle('active', b.dataset.theme === theme));
   }
-  let fitWidth = false;
+  let fitWidth = settings.fitWidth ?? false;
 
   function applyWidth(w) {
     const widthMap = { narrow: '560px', normal: '720px', wide: '960px' };
@@ -167,8 +167,10 @@
 
   el('btn-fit-width').addEventListener('click', () => {
     fitWidth = !fitWidth;
+    settings.fitWidth = fitWidth;
     applyWidth(settings.columnWidth || 'normal');
     updateContentStyles();
+    persistSettings();
   });
 
   btnFullscreen.addEventListener('click', async () => {
@@ -723,7 +725,7 @@
     canvas.className = 'bk-pdf-page';
     viewer.insertBefore(canvas, nav);
 
-    let pdfZoom = 1.0;
+    let pdfZoom = settings.pdfZoom ?? 1.0;
     const ZOOM_STEP = 0.25;
     const ZOOM_MIN  = 0.5;
     const ZOOM_MAX  = 4.0;
@@ -762,18 +764,24 @@
     el('pdf-page-input').addEventListener('change', e => renderPage(parseInt(e.target.value)));
     el('pdf-zoom-in').addEventListener('click', () => {
       pdfZoom = Math.min(ZOOM_MAX, pdfZoom + ZOOM_STEP);
+      settings.pdfZoom = pdfZoom;
       updateZoomLabel();
       renderPage(currentPage);
+      persistSettings();
     });
     el('pdf-zoom-out').addEventListener('click', () => {
       pdfZoom = Math.max(ZOOM_MIN, pdfZoom - ZOOM_STEP);
+      settings.pdfZoom = pdfZoom;
       updateZoomLabel();
       renderPage(currentPage);
+      persistSettings();
     });
     el('pdf-zoom-reset').addEventListener('click', () => {
       pdfZoom = 1.0;
+      settings.pdfZoom = pdfZoom;
       updateZoomLabel();
       renderPage(currentPage);
+      persistSettings();
     });
 
     // ── Pinch-to-zoom + double-tap (PDF) ─────────────────────────
@@ -791,6 +799,7 @@
         if (pdfLastTouches) {
           const ratio = dist / pdfLastTouches.dist;
           pdfZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pdfZoom * ratio));
+          settings.pdfZoom = pdfZoom;
           updateZoomLabel();
           el('pdf-zoom-in').disabled  = pdfZoom >= ZOOM_MAX;
           el('pdf-zoom-out').disabled = pdfZoom <= ZOOM_MIN;
@@ -812,8 +821,10 @@
         const now = Date.now();
         if (pdfLastTap && now - pdfLastTap < 300) {
           pdfZoom = pdfZoom > 1.05 ? 1.0 : 2.0;
+          settings.pdfZoom = pdfZoom;
           updateZoomLabel();
           renderPage(currentPage);
+          persistSettings();
           pdfLastTap = null;
         } else {
           pdfLastTap = now;
