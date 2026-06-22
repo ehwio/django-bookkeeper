@@ -224,15 +224,31 @@
     </aside>
   </div>
 
-  <!-- Highlight context menu -->
+  <!-- Highlight context menu (desktop / pointer:fine) -->
   <div class="bk-highlight-menu" id="highlight-menu" hidden>
     <button class="bk-hl-color" data-color="yellow" style="background:#fef08a" title="Yellow"></button>
-    <button class="bk-hl-color" data-color="green" style="background:#bbf7d0" title="Green"></button>
-    <button class="bk-hl-color" data-color="blue" style="background:#bfdbfe" title="Blue"></button>
-    <button class="bk-hl-color" data-color="pink" style="background:#fbcfe8" title="Pink"></button>
+    <button class="bk-hl-color" data-color="green"  style="background:#bbf7d0" title="Green"></button>
+    <button class="bk-hl-color" data-color="blue"   style="background:#bfdbfe" title="Blue"></button>
+    <button class="bk-hl-color" data-color="pink"   style="background:#fbcfe8" title="Pink"></button>
     <button class="bk-hl-color" data-color="orange" style="background:#fed7aa" title="Orange"></button>
     <button class="bk-hl-remove" id="hl-remove" title="Remove highlight">✕</button>
     <button class="bk-hl-snippet" id="hl-snippet" title="Save as snippet">"</button>
+  </div>
+
+  <!-- Bottom selection bar (touch / pointer:coarse) -->
+  <div id="selection-bar" role="toolbar" aria-label="Text selection actions">
+    <div class="bk-sel-bar-handle" aria-hidden="true"></div>
+    <div class="bk-sel-bar-label">Highlight</div>
+    <div class="bk-sel-bar-actions">
+      <button class="bk-hl-color" data-color="yellow" style="background:#fef08a" title="Yellow"></button>
+      <button class="bk-hl-color" data-color="green"  style="background:#bbf7d0" title="Green"></button>
+      <button class="bk-hl-color" data-color="blue"   style="background:#bfdbfe" title="Blue"></button>
+      <button class="bk-hl-color" data-color="pink"   style="background:#fbcfe8" title="Pink"></button>
+      <button class="bk-hl-color" data-color="orange" style="background:#fed7aa" title="Orange"></button>
+      <div class="bk-sel-bar-divider" aria-hidden="true"></div>
+      <button class="bk-hl-remove" id="sb-remove" title="Remove highlight">✕</button>
+      <button class="bk-hl-snippet" id="sb-snippet" title="Save as snippet">"</button>
+    </div>
   </div>
 
   <!-- Bookmark dialog -->
