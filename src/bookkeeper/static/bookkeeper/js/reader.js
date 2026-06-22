@@ -464,6 +464,13 @@
 
   applyFontSettings();
 
+  // Register touch handlers immediately — before any async format load.
+  // loadNativeEpub() un-hides #native-epub-viewer synchronously at its
+  // first line, so by the time Playwright (or any macrotask) sees the
+  // selector change and dispatches a touch event, these handlers must
+  // already be attached.
+  initSwipeGestures();
+
   try {
     if (format === 'epub' && hasChapters) await loadNativeEpub();
     else if (format === 'epub')           await loadEpub();
@@ -1447,5 +1454,4 @@
     }
   }
 
-  initSwipeGestures();
 })();

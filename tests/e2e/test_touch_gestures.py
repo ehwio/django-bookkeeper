@@ -101,22 +101,39 @@ def reader_url(live_server, book):
 # ---------------------------------------------------------------------------
 
 
-def _force_chrome_visible(page):
-    """Force chrome visible and cancel any pending auto-hide timer.
+_RESET_AND_TAP_JS = """
+() => {
+    // Cancel ALL pending timers so the auto-hide cannot fire between the
+    // reset and the tap (they happen synchronously in the same JS tick).
+    const probe = setTimeout(() => {}, 0);
+    for (let i = 1; i <= probe; i++) clearTimeout(i);
 
-    The reader schedules a 3-second hideChrome() setTimeout on load.  If that
-    fires between this call and the subsequent touch_tap, tapCenter() sees
-    chrome as hidden and calls showChrome() instead of hideChrome(), inverting
-    the expected result.  We cancel recent timer IDs to neutralise it.
-    """
-    page.evaluate("""() => {
-        document.getElementById('bk-reader').classList.remove('chrome-hidden');
-        // Probe for the current highest timer ID, then clear a window of
-        // recent IDs that would include the auto-hide timer.
-        const probe = setTimeout(() => {}, 0);
-        clearTimeout(probe);
-        for (let i = Math.max(1, probe - 200); i <= probe; i++) clearTimeout(i);
-    }""")
+    const reader = document.getElementById('bk-reader');
+    reader.classList.remove('chrome-hidden');
+
+    // Tap the centre of the viewport.
+    const el = document.getElementById('reader-viewport');
+    if (!el) return {before: null, after: null};
+    const x = Math.round(window.innerWidth / 2);
+    const y = Math.round(window.innerHeight / 2);
+    function fire(type, cx, cy) {
+        const touch = new Touch({
+            identifier: 1, target: el,
+            clientX: cx, clientY: cy,
+            pageX: cx, pageY: cy, screenX: cx, screenY: cy,
+            radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1,
+        });
+        el.dispatchEvent(new TouchEvent(type, {
+            bubbles: true, cancelable: true,
+            touches:        type === 'touchend' ? [] : [touch],
+            changedTouches: [touch],
+        }));
+    }
+    fire('touchstart', x, y);
+    fire('touchend',   x, y);
+    return reader.classList.contains('chrome-hidden');
+}
+"""
 
 
 def test_chrome_autohides_on_touch_device(mobile_page, e2e_book, live_server):
@@ -125,15 +142,9 @@ def test_chrome_autohides_on_touch_device(mobile_page, e2e_book, live_server):
     page.goto(reader_url(live_server, e2e_book))
     page.wait_for_selector("#native-epub-viewer:not([hidden])", timeout=10_000)
 
-    # Cancel any pending auto-hide timer and force chrome visible so the test
-    # doesn't race against the 3-second timeout on slow CI machines.
-    _force_chrome_visible(page)
-    assert not chrome_hidden(page), "chrome should be visible"
-
-    w = page.evaluate("window.innerWidth")
-    h = page.evaluate("window.innerHeight")
-    touch_tap(page, w // 2, h // 2)
-    assert chrome_hidden(page), "centre tap should hide chrome"
+    # Reset state + tap in one JS call — no Python round-trip between them.
+    hidden_after = page.evaluate(_RESET_AND_TAP_JS)
+    assert hidden_after, "centre tap should hide chrome"
 
 
 def test_centre_tap_toggles_chrome(mobile_page, e2e_book, live_server):
@@ -142,15 +153,14 @@ def test_centre_tap_toggles_chrome(mobile_page, e2e_book, live_server):
     page.goto(reader_url(live_server, e2e_book))
     page.wait_for_selector("#native-epub-viewer:not([hidden])", timeout=10_000)
 
-    _force_chrome_visible(page)
-    w = page.evaluate("window.innerWidth")
-    h = page.evaluate("window.innerHeight")
-    cx, cy = w // 2, h // 2
+    # First tap: reset to visible then tap → should hide.
+    hidden_after_first = page.evaluate(_RESET_AND_TAP_JS)
+    assert hidden_after_first, "first centre tap should hide chrome"
 
-    touch_tap(page, cx, cy)
-    assert chrome_hidden(page), "first centre tap should hide chrome"
-
-    touch_tap(page, cx, cy)
+    # Second tap: chrome is now hidden, tap → should show.
+    # No need to reset; just tap centre directly.
+    touch_tap(page, page.evaluate("Math.round(window.innerWidth/2)"),
+              page.evaluate("Math.round(window.innerHeight/2)"))
     assert not chrome_hidden(page), "second centre tap should show chrome"
 
 
