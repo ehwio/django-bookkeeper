@@ -161,6 +161,8 @@
       if (iconFsExit)  iconFsExit.hidden  = !isFS;
       if (fsLabel) fsLabel.textContent = isFS ? 'Exit fullscreen' : 'Enter fullscreen';
     }
+    // When leaving fullscreen, always restore the chrome
+    if (!isFS) reader.classList.remove('chrome-hidden');
   }
 
   el('btn-fit-width').addEventListener('click', () => {
@@ -1393,6 +1395,10 @@
     let chromeVisible = true;
 
     // ── Helpers ─────────────────────────────────────────────────
+    function isFullscreen() {
+      return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+
     function showChrome() {
       reader.classList.remove('chrome-hidden');
       chromeVisible = true;
@@ -1400,12 +1406,14 @@
     }
 
     function hideChrome() {
+      if (!isFullscreen()) return;
       reader.classList.add('chrome-hidden');
       chromeVisible = false;
     }
 
     function scheduleHideChrome() {
       clearTimeout(chromeTimer);
+      if (!isFullscreen()) return;
       chromeTimer = setTimeout(hideChrome, 3000);
     }
 
