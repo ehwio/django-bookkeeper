@@ -358,12 +358,17 @@
   el('bookmark-modal').querySelector('.bk-modal-close').addEventListener('click',
     () => el('bookmark-modal').setAttribute('hidden', ''));
   el('bm-save').addEventListener('click', async () => {
-    await apiPost(URL_BM_CREATE, {
-      title: el('bm-title').value.trim(),
+    const title = el('bm-title').value.trim();
+    const result = await apiPost(URL_BM_CREATE, {
+      title,
       note:  el('bm-note').value.trim(),
       position: pendingBookmarkPos || '',
       page_number: pendingBookmarkPage,
     });
+    if (result.ok) {
+      allBookmarks.push({ id: result.id, title, position: pendingBookmarkPos || '', page_number: pendingBookmarkPage });
+      populateSidebarBookmarks();
+    }
     el('bookmark-modal').setAttribute('hidden', '');
     el('bm-title').value = '';
     el('bm-note').value  = '';
