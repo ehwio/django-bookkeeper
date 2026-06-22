@@ -151,21 +151,76 @@ def e2e_book(db, e2e_user, epub_bytes, settings):
     return book
 
 
-@pytest.fixture()
-def logged_in_page(page, live_server, e2e_user):
-    """A Playwright page with a valid session cookie — no login form needed."""
+def _session_cookie(e2e_user):
+    """Return the sessionid cookie value for e2e_user via Django test client."""
     from django.test import Client
 
     client = Client()
     client.login(username=E2E_USERNAME, password=E2E_PASSWORD)
-    session_cookie = client.cookies["sessionid"]
+    return client.cookies["sessionid"].value
 
-    parsed = live_server.url.split("://", 1)[1]  # strip http://
-    host = parsed.split(":")[0]
 
+@pytest.fixture()
+def e2e_book_2ch(db, e2e_user, epub_bytes, settings):
+    """A two-chapter EPUB book — needed for chapter navigation tests."""
+    import hashlib
+
+    file_hash = hashlib.sha256(epub_bytes).hexdigest()[:16]
+    rel_path = "bookkeeper/books/e2e-test-book-2ch.epub"
+
+    abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+    with open(abs_path, "wb") as f:
+        f.write(epub_bytes)
+
+    book = Book.objects.create(
+        title="E2E Two-Chapter Book",
+        slug="e2e-test-book-2ch",
+        author="Test Author",
+        format=BookFormat.EPUB,
+        file=rel_path,
+        file_hash=file_hash,
+        page_count=2,
+        added_by=e2e_user,
+    )
+    UserBook.objects.create(user=e2e_user, book=book)
+
+    for i, title in enumerate(["Chapter One", "Chapter Two"]):
+        html = f"<h1>{title}</h1><p>Content of {title.lower()}.</p>"
+        Chapter.objects.create(
+            book=book,
+            spine_index=i,
+            title=title,
+            html=html,
+            char_count=len(html),
+            content_hash=hashlib.sha256(html.encode()).hexdigest()[:16],
+        )
+    return book
+
+
+@pytest.fixture()
+def mobile_page(browser, playwright, live_server, e2e_user):
+    """A Playwright page using iPhone 14 emulation, already logged in."""
+    ctx = browser.new_context(**playwright.devices["iPhone 14"])
+    host = live_server.url.split("://", 1)[1].split(":")[0]
+    ctx.add_cookies([{
+        "name": "sessionid",
+        "value": _session_cookie(e2e_user),
+        "domain": host,
+        "path": "/",
+    }])
+    page = ctx.new_page()
+    yield page
+    ctx.close()
+
+
+@pytest.fixture()
+def logged_in_page(page, live_server, e2e_user):
+    """A Playwright page with a valid session cookie — no login form needed."""
+    host = live_server.url.split("://", 1)[1].split(":")[0]
     page.context.add_cookies([{
         "name": "sessionid",
-        "value": session_cookie.value,
+        "value": _session_cookie(e2e_user),
         "domain": host,
         "path": "/",
     }])
