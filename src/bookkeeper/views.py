@@ -372,6 +372,9 @@ def api_rate(request, slug):
 def api_highlight_create(request, slug):
     book = get_object_or_404(Book, slug=slug)
     data = json.loads(request.body)
+    for field in ("start_position", "end_position", "text"):
+        if field not in data or not data[field]:
+            return JsonResponse({"error": f"'{field}' is required"}, status=400)
     highlight = Highlight.objects.create(
         user=request.user,
         book=book,
@@ -401,6 +404,8 @@ def api_highlight_delete(request, slug, pk):
 def api_bookmark_create(request, slug):
     book = get_object_or_404(Book, slug=slug)
     data = json.loads(request.body)
+    if "position" not in data or not data["position"]:
+        return JsonResponse({"error": "'position' is required"}, status=400)
     bookmark = Bookmark.objects.create(
         user=request.user,
         book=book,
@@ -418,6 +423,8 @@ def api_bookmark_create(request, slug):
 def api_snippet_create(request, slug):
     book = get_object_or_404(Book, slug=slug)
     data = json.loads(request.body)
+    if "text" not in data or not data["text"]:
+        return JsonResponse({"error": "'text' is required"}, status=400)
     snippet = Snippet.objects.create(
         user=request.user,
         book=book,
