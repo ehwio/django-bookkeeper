@@ -75,6 +75,11 @@ body:has(#bk-reader) .bk-main {
   --rd-muted:   #8a8070;
   --rd-border:  #3a3530;
   --rd-header:  #1a1814;
+  --hl-yellow:  #7c5c00;
+  --hl-green:   #1a6b35;
+  --hl-blue:    #1a4a7a;
+  --hl-pink:    #8b1a4a;
+  --hl-orange:  #8b3a00;
 }
 
 #bk-reader {
@@ -387,11 +392,11 @@ body:has(#bk-reader) .bk-main {
                                padding: .1em .3em; border-radius: 3px; }
 
 /* CSS Custom Highlight API — painted by JS for new and restored highlights */
-::highlight(bk-hl-yellow) { background-color: #fef08a; }
-::highlight(bk-hl-green)  { background-color: #bbf7d0; }
-::highlight(bk-hl-blue)   { background-color: #bfdbfe; }
-::highlight(bk-hl-pink)   { background-color: #fbcfe8; }
-::highlight(bk-hl-orange) { background-color: #fed7aa; }
+::highlight(bk-hl-yellow) { background-color: var(--hl-yellow, #fef08a); }
+::highlight(bk-hl-green)  { background-color: var(--hl-green, #bbf7d0); }
+::highlight(bk-hl-blue)   { background-color: var(--hl-blue, #bfdbfe); }
+::highlight(bk-hl-pink)   { background-color: var(--hl-pink, #fbcfe8); }
+::highlight(bk-hl-orange) { background-color: var(--hl-orange, #fed7aa); }
 
 /* PDF viewer */
 #pdf-viewer {
