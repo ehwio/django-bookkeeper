@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/src
 
 COPY pyproject.toml uv.lock README.md LICENSE ./
 RUN pip install uv && uv sync --no-dev
@@ -16,3 +16,5 @@ COPY src/ ./src/
 COPY demo/ ./demo/
 
 EXPOSE 8000
+
+CMD ["sh", "-c", "cd demo && uv run python manage.py runserver 0.0.0.0:8000"]
