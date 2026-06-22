@@ -817,6 +817,7 @@
         el('pdf-canvas-wrap').style.transform = '';
         el('pdf-canvas-wrap').style.transformOrigin = '';
         renderPage(currentPage);
+        persistSettings(); // save zoom after pinch gesture ends
       } else if (e.changedTouches.length === 1) {
         const now = Date.now();
         if (pdfLastTap && now - pdfLastTap < 300) {
