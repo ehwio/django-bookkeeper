@@ -67,8 +67,11 @@ jobs:
   e2e:
     needs: lint
     runs-on: ubuntu-latest
-    # Only run E2E on develop and main pushes, not every PR branch
-    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    # Run E2E on develop, main, and the stability fix branch
+    if: |
+      github.ref == 'refs/heads/develop' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/fix/e2e-ci-stability'
     steps:
       - uses: actions/checkout@v4
 
