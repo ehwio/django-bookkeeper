@@ -102,8 +102,21 @@ def reader_url(live_server, book):
 
 
 def _force_chrome_visible(page):
-    """Remove chrome-hidden so tests don't race against the 3-second auto-hide."""
-    page.evaluate("document.getElementById('bk-reader').classList.remove('chrome-hidden')")
+    """Force chrome visible and cancel any pending auto-hide timer.
+
+    The reader schedules a 3-second hideChrome() setTimeout on load.  If that
+    fires between this call and the subsequent touch_tap, tapCenter() sees
+    chrome as hidden and calls showChrome() instead of hideChrome(), inverting
+    the expected result.  We cancel recent timer IDs to neutralise it.
+    """
+    page.evaluate("""() => {
+        document.getElementById('bk-reader').classList.remove('chrome-hidden');
+        // Probe for the current highest timer ID, then clear a window of
+        // recent IDs that would include the auto-hide timer.
+        const probe = setTimeout(() => {}, 0);
+        clearTimeout(probe);
+        for (let i = Math.max(1, probe - 200); i <= probe; i++) clearTimeout(i);
+    }""")
 
 
 def test_chrome_autohides_on_touch_device(mobile_page, e2e_book, live_server):
