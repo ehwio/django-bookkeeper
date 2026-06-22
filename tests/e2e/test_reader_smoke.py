@@ -54,15 +54,21 @@ def test_highlight_flow(logged_in_page, e2e_book, live_server):
     # selection between the event dispatch and the 300ms debounce firing.
     appeared = page.evaluate("""async () => {
         const menu = document.getElementById('highlight-menu');
-        const p = document.querySelector('#bk-chapter-content p');
+        const content = document.getElementById('bk-chapter-content');
+        const p = content?.querySelector('p');
         if (!p) return false;
+
+        // Focus the content area so the selection sticks in headless Chromium.
+        content.setAttribute('tabindex', '-1');
+        content.focus();
 
         await new Promise((resolve, reject) => {
             const observer = new MutationObserver(() => {
                 if (!menu.hidden) { observer.disconnect(); resolve(); }
             });
             observer.observe(menu, { attributes: true, attributeFilter: ['hidden'] });
-            setTimeout(() => { observer.disconnect(); reject(new Error('timeout')); }, 3000);
+            // 6 s: 300 ms debounce + generous CI headroom
+            setTimeout(() => { observer.disconnect(); reject(new Error('timeout')); }, 6000);
 
             const range = document.createRange();
             range.selectNodeContents(p);

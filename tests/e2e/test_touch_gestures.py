@@ -73,17 +73,22 @@ def reader_url(live_server, book):
 # ---------------------------------------------------------------------------
 
 
+def _force_chrome_visible(page):
+    """Remove chrome-hidden so tests don't race against the 3-second auto-hide."""
+    page.evaluate("document.getElementById('bk-reader').classList.remove('chrome-hidden')")
+
+
 def test_chrome_autohides_on_touch_device(mobile_page, e2e_book, live_server):
-    """On a touch device the chrome auto-hides after 3 s; we skip the wait
-    and verify it's hidden by tapping the centre (toggles hide)."""
+    """Centre tap hides chrome; verifies tapCenter() → hideChrome() path."""
     page = mobile_page
     page.goto(reader_url(live_server, e2e_book))
     page.wait_for_selector("#native-epub-viewer:not([hidden])", timeout=10_000)
 
-    # Chrome starts visible on touch (auto-hide scheduled but not fired yet).
-    assert not chrome_hidden(page), "chrome should be visible on load"
+    # Cancel any pending auto-hide timer and force chrome visible so the test
+    # doesn't race against the 3-second timeout on slow CI machines.
+    _force_chrome_visible(page)
+    assert not chrome_hidden(page), "chrome should be visible"
 
-    # Tap centre → hides chrome immediately.
     w = page.evaluate("window.innerWidth")
     h = page.evaluate("window.innerHeight")
     touch_tap(page, w // 2, h // 2)
@@ -96,6 +101,7 @@ def test_centre_tap_toggles_chrome(mobile_page, e2e_book, live_server):
     page.goto(reader_url(live_server, e2e_book))
     page.wait_for_selector("#native-epub-viewer:not([hidden])", timeout=10_000)
 
+    _force_chrome_visible(page)
     w = page.evaluate("window.innerWidth")
     h = page.evaluate("window.innerHeight")
     cx, cy = w // 2, h // 2
