@@ -12,36 +12,64 @@ pytestmark = pytest.mark.e2e
 # Helpers
 # ---------------------------------------------------------------------------
 
-_TOUCH_JS = """
-([type, x, y]) => {
+# Both touch events are dispatched in a single evaluate call so there is no
+# Python round-trip between touchstart and touchend.  Separate evaluate calls
+# can exceed the 300 ms TAP_MAX_MS threshold on slow CI machines.
+_TAP_JS = """
+([x, y]) => {
     const el = document.getElementById('reader-viewport');
     if (!el) return false;
-    const touch = new Touch({
-        identifier: 1, target: el,
-        clientX: x, clientY: y,
-        pageX: x, pageY: y, screenX: x, screenY: y,
-        radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1,
-    });
-    el.dispatchEvent(new TouchEvent(type, {
-        bubbles: true, cancelable: true,
-        touches:        type === 'touchend' ? [] : [touch],
-        changedTouches: [touch],
-    }));
+    function fire(type, cx, cy) {
+        const touch = new Touch({
+            identifier: 1, target: el,
+            clientX: cx, clientY: cy,
+            pageX: cx, pageY: cy, screenX: cx, screenY: cy,
+            radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1,
+        });
+        el.dispatchEvent(new TouchEvent(type, {
+            bubbles: true, cancelable: true,
+            touches:        type === 'touchend' ? [] : [touch],
+            changedTouches: [touch],
+        }));
+    }
+    fire('touchstart', x, y);
+    fire('touchend',   x, y);
+    return true;
+}
+"""
+
+_SWIPE_JS = """
+([x_start, x_end, y]) => {
+    const el = document.getElementById('reader-viewport');
+    if (!el) return false;
+    function fire(type, cx, cy) {
+        const touch = new Touch({
+            identifier: 1, target: el,
+            clientX: cx, clientY: cy,
+            pageX: cx, pageY: cy, screenX: cx, screenY: cy,
+            radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1,
+        });
+        el.dispatchEvent(new TouchEvent(type, {
+            bubbles: true, cancelable: true,
+            touches:        type === 'touchend' ? [] : [touch],
+            changedTouches: [touch],
+        }));
+    }
+    fire('touchstart', x_start, y);
+    fire('touchend',   x_end,   y);
     return true;
 }
 """
 
 
 def touch_tap(page, x, y):
-    """Dispatch a short tap at (x, y) via synthetic touch events."""
-    page.evaluate(_TOUCH_JS, ["touchstart", x, y])
-    page.evaluate(_TOUCH_JS, ["touchend", x, y])
+    """Dispatch touchstart + touchend at (x, y) in a single evaluate call."""
+    page.evaluate(_TAP_JS, [x, y])
 
 
 def touch_swipe(page, x_start, x_end, y):
-    """Dispatch a horizontal swipe (start → end) via synthetic touch events."""
-    page.evaluate(_TOUCH_JS, ["touchstart", x_start, y])
-    page.evaluate(_TOUCH_JS, ["touchend", x_end, y])
+    """Dispatch a horizontal swipe in a single evaluate call."""
+    page.evaluate(_SWIPE_JS, [x_start, x_end, y])
 
 
 # #native-chapter-loc is updated by loadChapter() as "N / total" (1-based).

@@ -47,39 +47,12 @@ def test_highlight_flow(logged_in_page, e2e_book, live_server):
     page.goto(f"{live_server.url}/books/book/{e2e_book.slug}/read/")
     page.wait_for_selector("#native-epub-viewer:not([hidden])", timeout=10_000)
 
-    # Select the first paragraph text via JS (programmatic selection is
-    # more reliable than mouse-drag across browsers in CI)
-    # Make the selection and wait for the menu to appear entirely inside the
-    # browser context so no Python/Playwright round-trip can clear the
-    # selection between the event dispatch and the 300ms debounce firing.
-    appeared = page.evaluate("""async () => {
-        const menu = document.getElementById('highlight-menu');
-        const content = document.getElementById('bk-chapter-content');
-        const p = content?.querySelector('p');
-        if (!p) return false;
-
-        // Focus the content area so the selection sticks in headless Chromium.
-        content.setAttribute('tabindex', '-1');
-        content.focus();
-
-        await new Promise((resolve, reject) => {
-            const observer = new MutationObserver(() => {
-                if (!menu.hidden) { observer.disconnect(); resolve(); }
-            });
-            observer.observe(menu, { attributes: true, attributeFilter: ['hidden'] });
-            // 6 s: 300 ms debounce + generous CI headroom
-            setTimeout(() => { observer.disconnect(); reject(new Error('timeout')); }, 6000);
-
-            const range = document.createRange();
-            range.selectNodeContents(p);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-            document.dispatchEvent(new Event('selectionchange'));
-        });
-        return !menu.hidden;
-    }""")
-    assert appeared, "highlight menu did not appear after text selection"
+    # Triple-click the first paragraph to select it via real browser events.
+    # This fires genuine selectionchange events that the reader's debounced
+    # handler picks up — more reliable in headless CI than programmatic
+    # range manipulation + synthetic event dispatch.
+    page.click("#bk-chapter-content p", click_count=3)
+    page.wait_for_selector("#highlight-menu:not([hidden])", timeout=6_000)
     assert page.is_visible("#highlight-menu")
 
     # Click the yellow swatch — dispatch directly to avoid the mousedown
