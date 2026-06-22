@@ -382,9 +382,12 @@
     pendingSelection = null;
   }
 
-  // Dismiss on outside mousedown (desktop) or touchstart (mobile)
+  // Dismiss on outside mousedown (desktop) or touchstart (mobile).
+  // iOS synthesises mousedown after touchstart, so both handlers must
+  // exempt selBar — otherwise the mousedown fires after touchstart
+  // and clears pendingSelection before the click reaches the button.
   document.addEventListener('mousedown', e => {
-    if (!hlMenu.contains(e.target)) hideHighlightMenu();
+    if (!hlMenu.contains(e.target) && !selBar.contains(e.target)) hideHighlightMenu();
   });
   document.addEventListener('touchstart', e => {
     if (!hlMenu.contains(e.target) && !selBar.contains(e.target)) hideHighlightMenu();
