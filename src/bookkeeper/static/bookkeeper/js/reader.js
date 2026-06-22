@@ -481,6 +481,7 @@
         text,
         note: el('sn-note').value.trim(),
         page_number: pendingSnippetData?.page_number || 1,
+        position:    pendingSnippetData?.start_position || '',
       });
       el('tab-snippets').innerHTML = '';
       populateSidebarSnippets();
@@ -619,10 +620,17 @@
       if (!text) return;
       const rects = sel.getRangeAt(0).getClientRects();
       const last  = rects[rects.length - 1];
-      const iframeRect = area.querySelector('iframe')?.getBoundingClientRect() || { left: 0, top: 0 };
+      const iframeRect = area.querySelector('iframe')?.getBoundingClientRect() || { left: 0, top: 0, right: 0, bottom: 0 };
+      const selRect = {
+        left:   iframeRect.left + last.left,
+        right:  iframeRect.left + last.right,
+        top:    iframeRect.top  + last.top,
+        bottom: iframeRect.top  + last.bottom,
+        width:  last.width,
+        height: last.height,
+      };
       showHighlightMenu(
-        iframeRect.left + last.right,
-        iframeRect.top  + last.bottom,
+        selRect,
         { start_position: cfiRange, end_position: cfiRange, text, page_number: pendingBookmarkPage }
       );
     });
