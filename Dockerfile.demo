@@ -9,11 +9,10 @@ WORKDIR /app
 
 ENV PYTHONPATH=/app
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md LICENSE ./
 RUN pip install uv && uv sync --no-dev
 
 COPY src/ ./src/
 COPY demo/ ./demo/
-COPY README.md LICENSE ./
 
 EXPOSE 8000
