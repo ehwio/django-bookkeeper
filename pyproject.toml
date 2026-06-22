@@ -41,6 +41,8 @@ dev = [
     "factory-boy>=3.3",
     "ruff>=0.4",
     "django-debug-toolbar>=4.3",
+    "playwright>=1.44",
+    "pytest-playwright>=0.5",
 ]
 social = [
     "social-auth-app-django>=5.4",
@@ -58,6 +60,7 @@ packages = ["src/bookkeeper"]
 DJANGO_SETTINGS_MODULE = "tests.settings"
 pythonpath = ["src", "."]
 testpaths = ["tests"]
+norecursedirs = ["tests/e2e"]
 
 [tool.ruff]
 src = ["src"]

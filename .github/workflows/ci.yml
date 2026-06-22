@@ -63,3 +63,26 @@ jobs:
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
+
+  e2e:
+    needs: lint
+    runs-on: ubuntu-latest
+    # Only run E2E on develop and main pushes, not every PR branch
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra dev --python 3.12
+
+      - name: Install Playwright browsers
+        run: uv run playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        run: uv run pytest -c pytest-e2e.ini
