@@ -461,7 +461,15 @@ def api_bookmark_delete(request, slug, pk):
 def api_reader_settings(request):
     data = json.loads(request.body)
     settings_obj, _ = ReaderSettings.objects.get_or_create(user=request.user)
-    allowed = {"font_size", "font_family", "line_height", "theme", "column_width"}
+    allowed = {
+        "font_size",
+        "font_family",
+        "line_height",
+        "theme",
+        "column_width",
+        "fit_width",
+        "pdf_zoom",
+    }
     for key in allowed:
         if key in data:
             setattr(settings_obj, key, data[key])
