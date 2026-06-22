@@ -360,6 +360,12 @@ body {
 .bk-highlight-link { display: block; text-decoration: none; color: inherit; }
 .bk-highlight-link:hover { filter: brightness(.96); }
 
+#bk-reader[data-reader-theme="dark"] .bk-hl-yellow { border-color: #a07820; background: #3d2e00; color: #e8e0d4; }
+#bk-reader[data-reader-theme="dark"] .bk-hl-green  { border-color: #2a9a60; background: #0d3320; color: #e8e0d4; }
+#bk-reader[data-reader-theme="dark"] .bk-hl-blue   { border-color: #4a80c4; background: #0d2440; color: #e8e0d4; }
+#bk-reader[data-reader-theme="dark"] .bk-hl-pink   { border-color: #c44a80; background: #3d0d22; color: #e8e0d4; }
+#bk-reader[data-reader-theme="dark"] .bk-hl-orange { border-color: #c46a20; background: #3d1800; color: #e8e0d4; }
+
 /* ── Modal ───────────────────────────────────────────────────── */
 .bk-modal { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; }
 .bk-modal[hidden] { display: none; }
