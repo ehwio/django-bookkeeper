@@ -464,6 +464,13 @@
 
   applyFontSettings();
 
+  // Register touch handlers immediately — before any async format load.
+  // loadNativeEpub() un-hides #native-epub-viewer synchronously at its
+  // first line, so by the time Playwright (or any macrotask) sees the
+  // selector change and dispatches a touch event, these handlers must
+  // already be attached.
+  initSwipeGestures();
+
   try {
     if (format === 'epub' && hasChapters) await loadNativeEpub();
     else if (format === 'epub')           await loadEpub();
@@ -1400,9 +1407,6 @@
       const dist = Math.hypot(dx, dy);
       const dt   = e.timeStamp - touchStartT;
 
-      // Expose debug state for E2E tests (safe to leave in; no-op in prod)
-      window.__bk_touch_debug = { dx, dy, dist, dt, ts: e.timeStamp, startT: touchStartT };
-
       // Horizontal swipe
       if (Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
         if (dx < 0) doNext(); else doPrev();
@@ -1450,5 +1454,4 @@
     }
   }
 
-  initSwipeGestures();
 })();

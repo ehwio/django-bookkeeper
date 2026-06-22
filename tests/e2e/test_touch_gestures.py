@@ -142,79 +142,9 @@ def test_chrome_autohides_on_touch_device(mobile_page, e2e_book, live_server):
     page.goto(reader_url(live_server, e2e_book))
     page.wait_for_selector("#native-epub-viewer:not([hidden])", timeout=10_000)
 
-    # Diagnostic: understand the state before/after tap.
-    diag = page.evaluate("""() => {
-        const reader = document.getElementById('bk-reader');
-        const vp = document.getElementById('reader-viewport');
-        const zonePrev = document.getElementById('zone-prev');
-        const zoneNext = document.getElementById('zone-next');
-        const zoneCenter = document.getElementById('zone-center');
-
-        const probe = setTimeout(() => {}, 0);
-        for (let i = 1; i <= probe; i++) clearTimeout(i);
-
-        const beforeClass = reader.classList.contains('chrome-hidden');
-        reader.classList.remove('chrome-hidden');
-        const afterRemove = reader.classList.contains('chrome-hidden');
-
-        let probeListenerFired = false;
-        let touchEndDispatched = false;
-
-        if (vp) {
-            // Probe listener to confirm dispatchEvent reaches the element
-            vp.addEventListener('touchend',
-                () => { probeListenerFired = true; }, { once: true, passive: true });
-
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            const x = Math.round(w / 2);
-            const y = Math.round(h / 2);
-            function fire(type, cx, cy) {
-                const touch = new Touch({
-                    identifier: 1, target: vp,
-                    clientX: cx, clientY: cy, pageX: cx, pageY: cy,
-                    screenX: cx, screenY: cy,
-                    radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1,
-                });
-                vp.dispatchEvent(new TouchEvent(type, {
-                    bubbles: true, cancelable: true,
-                    touches: type === 'touchend' ? [] : [touch],
-                    changedTouches: [touch],
-                }));
-                if (type === 'touchend') touchEndDispatched = true;
-            }
-            fire('touchstart', x, y);
-            fire('touchend', x, y);
-
-            return {
-                vpExists: true,
-                zonePrevExists: !!zonePrev,
-                zoneNextExists: !!zoneNext,
-                zoneCenterExists: !!zoneCenter,
-                beforeClass,
-                afterRemove,
-                probeListenerFired,
-                touchEndDispatched,
-                afterTap: reader.classList.contains('chrome-hidden'),
-                coarsePointer: window.matchMedia('(pointer: coarse)').matches,
-                innerWidth: w,
-                innerHeight: h,
-                tapX: x,
-                tapY: y,
-            };
-        }
-        return {
-            vpExists: false,
-            zonePrevExists: !!zonePrev, zoneNextExists: !!zoneNext,
-            zoneCenterExists: !!zoneCenter,
-        };
-    }""")
-    touch_debug = page.evaluate("window.__bk_touch_debug || null")
-    print("DIAG:", diag)
-    print("TOUCH_DEBUG:", touch_debug)
-    assert diag["afterTap"], (
-        f"centre tap should hide chrome — diag: {diag}, touch_debug: {touch_debug}"
-    )
+    # Reset state + tap in one JS call — no Python round-trip between them.
+    hidden_after = page.evaluate(_RESET_AND_TAP_JS)
+    assert hidden_after, "centre tap should hide chrome"
 
 
 def test_centre_tap_toggles_chrome(mobile_page, e2e_book, live_server):
