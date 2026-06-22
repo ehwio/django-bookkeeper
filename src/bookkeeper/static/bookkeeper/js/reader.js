@@ -425,6 +425,36 @@
     el('sn-title').focus();
     hideHighlightMenu();
   });
+  // "›" button — restore native iOS callout so the system menu (Copy/Translate/…) appears.
+  // -webkit-touch-callout: none is set on #bk-chapter-content to keep our toolbar visible;
+  // tapping "›" lifts that suppression, re-applies the current selection, and lets iOS
+  // show its own callout.  The suppression is restored once the selection clears.
+  el('hl-ios-more').addEventListener('click', e => {
+    e.stopPropagation();
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const savedRange = sel.getRangeAt(0).cloneRange();
+    const contentEl = el('bk-chapter-content');
+
+    // Lift suppression and hide our menu without clearing the selection
+    contentEl.style.webkitTouchCallout = 'default';
+    hlMenu.setAttribute('hidden', '');
+    pendingSelection = null;
+
+    // Re-apply the range — triggers iOS to re-evaluate whether to show its callout
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+
+    // Restore suppression once the user dismisses the system callout (selection gone)
+    const onSelChange = () => {
+      if (!window.getSelection()?.toString()) {
+        contentEl.style.webkitTouchCallout = '';
+        document.removeEventListener('selectionchange', onSelChange);
+      }
+    };
+    document.addEventListener('selectionchange', onSelChange);
+  });
+
   el('sn-cancel').addEventListener('click', () => el('snippet-modal').setAttribute('hidden', ''));
   el('snippet-modal').querySelector('.bk-modal-close').addEventListener('click',
     () => el('snippet-modal').setAttribute('hidden', ''));
