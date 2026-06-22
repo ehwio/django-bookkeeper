@@ -60,6 +60,7 @@ packages = ["src/bookkeeper"]
 DJANGO_SETTINGS_MODULE = "tests.settings"
 pythonpath = ["src", "."]
 testpaths = ["tests"]
+norecursedirs = ["tests/e2e"]
 
 [tool.ruff]
 src = ["src"]
