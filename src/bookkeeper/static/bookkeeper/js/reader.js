@@ -161,6 +161,8 @@
       if (iconFsExit)  iconFsExit.hidden  = !isFS;
       if (fsLabel) fsLabel.textContent = isFS ? 'Exit fullscreen' : 'Enter fullscreen';
     }
+    // When leaving fullscreen, always restore the chrome
+    if (!isFS) reader.classList.remove('chrome-hidden');
   }
 
   el('btn-fit-width').addEventListener('click', () => {
@@ -358,12 +360,17 @@
   el('bookmark-modal').querySelector('.bk-modal-close').addEventListener('click',
     () => el('bookmark-modal').setAttribute('hidden', ''));
   el('bm-save').addEventListener('click', async () => {
-    await apiPost(URL_BM_CREATE, {
-      title: el('bm-title').value.trim(),
+    const title = el('bm-title').value.trim();
+    const result = await apiPost(URL_BM_CREATE, {
+      title,
       note:  el('bm-note').value.trim(),
       position: pendingBookmarkPos || '',
       page_number: pendingBookmarkPage,
     });
+    if (result.ok) {
+      allBookmarks.push({ id: result.id, title, position: pendingBookmarkPos || '', page_number: pendingBookmarkPage });
+      populateSidebarBookmarks();
+    }
     el('bookmark-modal').setAttribute('hidden', '');
     el('bm-title').value = '';
     el('bm-note').value  = '';
@@ -1388,6 +1395,10 @@
     let chromeVisible = true;
 
     // ── Helpers ─────────────────────────────────────────────────
+    function isFullscreen() {
+      return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+
     function showChrome() {
       reader.classList.remove('chrome-hidden');
       chromeVisible = true;
@@ -1395,12 +1406,14 @@
     }
 
     function hideChrome() {
+      if (!isFullscreen()) return;
       reader.classList.add('chrome-hidden');
       chromeVisible = false;
     }
 
     function scheduleHideChrome() {
       clearTimeout(chromeTimer);
+      if (!isFullscreen()) return;
       chromeTimer = setTimeout(hideChrome, 3000);
     }
 

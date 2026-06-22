@@ -227,7 +227,7 @@ body:has(#bk-reader) .bk-main {
 
 /* ── Sidebar ─────────────────────────────────────────────────── */
 .bk-reader-sidebar {
-  width: 280px;
+  width: min(280px, 80vw);
   flex-shrink: 0;
   background: var(--rd-surface);
   border-right: 1px solid var(--rd-border);
