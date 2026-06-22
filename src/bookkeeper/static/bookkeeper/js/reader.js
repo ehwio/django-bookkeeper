@@ -515,6 +515,13 @@
   // already be attached.
   initSwipeGestures();
 
+  // Prevent the reader from acting as a drop target. A slight text drag
+  // would otherwise trigger browser drag-and-drop handling (file pickers,
+  // iframe navigation) that can't be dismissed without a page reload.
+  ['dragover', 'drop'].forEach(evt =>
+    document.addEventListener(evt, e => e.preventDefault(), false)
+  );
+
   try {
     if (format === 'epub' && hasChapters) await loadNativeEpub();
     else if (format === 'epub')           await loadEpub();

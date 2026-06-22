@@ -46,6 +46,9 @@ const BK = (() => {
     uploadModal.querySelector('.bk-modal-close')?.addEventListener('click', closeUpload);
     uploadModal.querySelector('.bk-modal-backdrop')?.addEventListener('click', closeUpload);
     document.getElementById('upload-cancel')?.addEventListener('click', closeUpload);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !uploadModal.hasAttribute('hidden')) closeUpload();
+    });
 
     // On touch devices, update the drop zone label to make it clear the file picker is the primary action
     const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
