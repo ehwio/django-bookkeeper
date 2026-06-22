@@ -7,10 +7,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+ENV PYTHONPATH=/app
+
 COPY pyproject.toml uv.lock ./
 RUN pip install uv && uv sync --no-dev
 
 COPY src/ ./src/
 COPY demo/ ./demo/
+COPY README.md LICENSE ./
 
 EXPOSE 8000
