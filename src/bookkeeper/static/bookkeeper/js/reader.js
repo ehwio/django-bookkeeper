@@ -317,10 +317,24 @@
       copyBtn.textContent = 'Copy';
       copyBtn.addEventListener('click', e => {
         e.stopPropagation();
-        navigator.clipboard.writeText(sn.text).then(() => {
+        const confirm = () => {
           copyBtn.textContent = 'Copied!';
           setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
-        });
+        };
+        const execFallback = () => {
+          const ta = document.createElement('textarea');
+          ta.value = sn.text;
+          ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); confirm(); } catch (_) { /* silent */ }
+          document.body.removeChild(ta);
+        };
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(sn.text).then(confirm).catch(execFallback);
+        } else {
+          execFallback();
+        }
       });
       li.append(titleEl, preview, copyBtn);
       ul.appendChild(li);
