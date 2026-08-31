@@ -101,6 +101,18 @@ def reader_url(live_server, book):
 # ---------------------------------------------------------------------------
 
 
+# hideChrome() is a no-op unless document.fullscreenElement is set (#103).
+# Headless Chromium rejects requestFullscreen(), so tests that need the
+# hide path stub the getter instead of entering real fullscreen.
+_STUB_FULLSCREEN_JS = """
+() => {
+    Object.defineProperty(document, 'fullscreenElement', {
+        configurable: true,
+        get() { return document.documentElement; },
+    });
+}
+"""
+
 _RESET_AND_TAP_JS = """
 () => {
     // Cancel ALL pending timers so the auto-hide cannot fire between the
@@ -136,23 +148,35 @@ _RESET_AND_TAP_JS = """
 """
 
 
-def test_chrome_autohides_on_touch_device(mobile_page, e2e_book, live_server):
-    """Centre tap hides chrome; verifies tapCenter() → hideChrome() path."""
+def test_chrome_stays_visible_outside_fullscreen(mobile_page, e2e_book, live_server):
+    """Centre tap must not hide chrome when not in fullscreen (#103)."""
     page = mobile_page
     page.goto(reader_url(live_server, e2e_book))
     page.wait_for_selector("#native-epub-viewer:not([hidden])", timeout=10_000)
 
+    hidden_after = page.evaluate(_RESET_AND_TAP_JS)
+    assert not hidden_after, "centre tap should not hide chrome outside fullscreen"
+
+
+def test_chrome_autohides_on_touch_device(mobile_page, e2e_book, live_server):
+    """Centre tap hides chrome in fullscreen; verifies tapCenter() → hideChrome()."""
+    page = mobile_page
+    page.goto(reader_url(live_server, e2e_book))
+    page.wait_for_selector("#native-epub-viewer:not([hidden])", timeout=10_000)
+
+    page.evaluate(_STUB_FULLSCREEN_JS)
     # Reset state + tap in one JS call — no Python round-trip between them.
     hidden_after = page.evaluate(_RESET_AND_TAP_JS)
-    assert hidden_after, "centre tap should hide chrome"
+    assert hidden_after, "centre tap should hide chrome in fullscreen"
 
 
 def test_centre_tap_toggles_chrome(mobile_page, e2e_book, live_server):
-    """Tap centre once to hide, tap again to show."""
+    """In fullscreen, tap centre once to hide, tap again to show."""
     page = mobile_page
     page.goto(reader_url(live_server, e2e_book))
     page.wait_for_selector("#native-epub-viewer:not([hidden])", timeout=10_000)
 
+    page.evaluate(_STUB_FULLSCREEN_JS)
     # First tap: reset to visible then tap → should hide.
     hidden_after_first = page.evaluate(_RESET_AND_TAP_JS)
     assert hidden_after_first, "first centre tap should hide chrome"
